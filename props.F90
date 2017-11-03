@@ -14,18 +14,37 @@
     type :: grid
         integer :: nx, ny, bx, by, offx, offy, nglob, nloc, dof
         integer, allocatable :: node(:,:,:), type_x(:,:), type_y(:,:)
-        real(8) :: l, w, dt, t
+        real(8) :: l, w, ew, dt, t
         real(8), allocatable :: dx(:), dlx(:), dy(:), dly(:)
     end type
+    
+    ! fundamental constants
+    real(8), parameter:: pi     = 4d0 * atan(1d0),        &
+                         eps0   = 8.85418782e-12,         &
+                         mu0    = 4 * pi * 1e-7,          &
+                         c0     = 1d0 / sqrt(eps0 * mu0), &
+                         e      = 1.60217646e-19,         &
+                         kb     = 1.3806503e-23
+
+    ! non-dimensional parameters
+    real(8), parameter:: x0   = 1e-3, &
+                         phi0 = e / (eps0 * x0), &
+                         t0   = 1e-6
+    
+    ! case properties
+    real(8), parameter:: Tg0    = 300, & ! kelvin
+                         p      = 3,   & ! torr
+                         ninf   = p * 101325d0 / 760d0 / kb / Tg0 * x0**3, &
+                         n_zero = 1e8 * x0**3
     
     logical :: unif = .True.
     
     contains
     
     ! *** Initialize Grid ***
-    subroutine g_init(g, nx, ny, px, py, dof, l, w, path)
+    subroutine g_init(g, nx, ny, px, py, dof, l, w, ew, path)
     type(grid), intent(inout) :: g
-    real(8), intent(in) :: l, w
+    real(8), intent(in) :: l, w, ew
     integer, intent(in) :: nx, ny, px, py, dof
     character(*), intent(in) :: path
     integer :: i, j, d
@@ -58,6 +77,7 @@
     
     g%l   = l
     g%w   = w
+    g%ew  = ew
     
     xtemp = 2.5 / float(g%nx+1)
     allocate(x(g%bx+2), g%dx(g%bx+1), g%dlx(g%bx) )
@@ -135,8 +155,21 @@
             if ((ry == 0) .and. (j == 1)) g%type_y(i,j) = -1
             if ((ry == py-1) .and. (j == g%by)) g%type_y(i,j) =  1
             
-            if ((rx == 0) .and. (i == 1)) g%type_x(i,j) = -1
-            if ((rx == px-1) .and. (i == g%bx)) g%type_x(i,j) =  1
+            if ((rx == 0) .and. (i == 1)) then
+                if (y(j) .le. g%ew) then
+                    g%type_x(i,j) = -2
+                else
+                    g%type_x(i,j) = -1
+                end if
+            end if
+            
+            if ((rx == px-1) .and. (i == g%bx)) then
+                if (y(j) .le. g%ew) then
+                    g%type_x(i,j) = 2
+                else
+                    g%type_x(i,j) = 1
+                end if
+            end if
         end do
     end do
 
@@ -206,6 +239,13 @@
     if (ierr .ne. MPI_SUCCESS) then
         if (my_id == 0) call MPI_File_Delete(path//'f2.dat', info, ierr);
         call MPI_File_Open(comm, path//'f2.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+    
+    call MPI_File_Open(comm, path//'f3.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        if (my_id == 0) call MPI_File_Delete(path//'f3.dat', info, ierr);
+        call MPI_File_Open(comm, path//'f3.dat', amode,  info, fh, ierr)
     end if
     call MPI_File_Close(fh, ierr)
     

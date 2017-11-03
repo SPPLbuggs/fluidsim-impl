@@ -5,8 +5,8 @@
     implicit none
     
     ! Petsc Variables
-    Mat A1, A2
-    Vec b1, b2, x1, x2
+    Mat A1, A2, A3
+    Vec b1, b2, b3, x1, x2, x3
     KSP ksp
     PetscInt Istart, Iend, ii, jj, nn(1)
     
@@ -60,6 +60,46 @@
     call KSPSetTYpe(ksp, KSPIBCGS, ierr) !works well for poisson
     call KSPSetFromOptions(ksp, ierr)
     
+    end subroutine
+
+! *** Integration Step of f_pl using fEval ***
+    subroutine petsc_step(g, A, b, x, f_pl, fEval, assem)
+        type(grid), intent(in) :: g
+        Mat A
+        Vec b, x
+        procedure(subIn) :: fEval
+        real(8), intent(inout) :: f_pl(:,:,:)
+        logical, intent(inout) :: assem
+        integer :: iter, conv
+        real(8) :: relErr
+        
+        if (assem) call petsc_create(g, A, b, x)
+    
+        do iter = 1, 100
+            ! Assemble jacobian and RHS
+            call assem_Ab(g, A, b, f_pl, fEval)
+            if (assem) call MatSetOption(A, Mat_New_Nonzero_Locations, &
+                                         PETSc_False, ierr)
+            
+            !call view(A, b)
+            
+            ! Check norm of residual
+            call VecNorm(b, norm_2, relErr, ierr)
+            if (relErr < 1d-8) exit
+            
+            ! Solve system:
+            call KSPSetOperators(ksp, A, A, ierr)
+            call KSPSolve(ksp, b, x, ierr)
+            
+            call KSPGetConvergedReason(ksp, conv, ierr)
+            if ((my_id == 0) .and. (conv .ne. 2)) write(*,3) conv
+            3 format('KSP did not converge; Reason = ',i0)
+            
+            ! Update variables with solution:
+            call upd_soln(g, x, f_pl)
+        end do
+        
+        assem = .False.
     end subroutine
 
 ! *** Assemble A and b ***
