@@ -6,7 +6,7 @@ program main
     
     type(grid) :: g
     integer :: ts = 0, nx, ny, dof
-    real(8) :: l, w, ew, dt, t_fin, t_pr, t_sv, sim_start, time
+    real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, sim_start, time
     character(80):: path
     logical :: assem(3) = .True.
     
@@ -24,16 +24,17 @@ program main
     px = 1
     py = 1
     dof = 1
-    l  = 1
-    w  = 1
-    ew = 1e-1
-    dt = 1e-2
+    l  = 1e-2 / x0
+    w  = 1e-2 / x0
+    ew = 5e-3 / x0
+    dt = 1e-3
     t_fin = 10
     t_pr = t_fin/100.
     t_sv = t_fin/100.
+    vl = 500 / ph0
     
     ! Read input arguments
-    call read_in(nx, ny, px, py, l, w, t_fin, dt, unif)
+    call read_in
     
     ! Initialize grid and arrays
     path = 'Output/'
@@ -49,19 +50,21 @@ program main
         if (g%t >= t_fin) exit
         
         ! Update boundary conditions
-        if (rx == 0) ph_pl(1,:,1) = 1!sin(2.0 * 3.14159 * g%t / 10.0)
-        if (ry == 0) ph_pl(:,1,1) = 1!sin(2.0 * 3.14159 * g%t / 10.0)
-
+        if (rx == 0) ph_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        if (ry == 0) ph_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        
         ! Solve laplace equation
         call petsc_step(g, A1, b1, x1, ph_pl, laplEval, assem(1))
         
         ! Solve electron equation
-        call petsc_step(g, A2, b2, x2, ne_pl, elecEval, assem(2))
         ne_mi = ne_pl
+        call petsc_step(g, A2, b2, x2, ne_pl, elecEval, assem(2))
+        ne_pl = max(ne_pl, n_zero)
         
         ! Solve ion equation
-        call petsc_step(g, A3, b3, x3, ni_pl, ionEval, assem(3))
         ni_mi = ni_pl
+        call petsc_step(g, A3, b3, x3, ni_pl, ionEval, assem(3))
+        ni_pl = max(ni_pl, n_zero)
         
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
@@ -73,9 +76,9 @@ program main
         
         ! Save data
         if (t_sv <= g%t) then
-            call savedat(trim(path)//'f1.dat', ph_pl(:,:,1))
-            call savedat(trim(path)//'f2.dat', ne_pl(:,:,1))
-            call savedat(trim(path)//'f3.dat', ni_pl(:,:,1))
+            call savedat(trim(path)//'f1.dat', ph_pl(:,:,1) * ph0)
+            call savedat(trim(path)//'f2.dat', ne_pl(:,:,1) / x0**3)
+            call savedat(trim(path)//'f3.dat', ni_pl(:,:,1) / x0**3)
             
             call MPI_File_Open(comm, trim(path)//'time.dat', &
                 MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
@@ -104,10 +107,7 @@ program main
     
 contains
     
-    subroutine read_in(nx, ny, px, py, l, w, t_fin, dt, unif)
-        integer, intent(inout) :: nx, ny, px, py
-        real(8), intent(inout) :: l, w, t_fin, dt
-        logical, intent(inout) :: unif
+    subroutine read_in
         integer :: i, narg
         character(80) :: arg
         
@@ -144,15 +144,21 @@ contains
                 case ('-l')
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) l
+                    l = l / x0
                 case ('-w')
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) w
+                    w = w / x0
                 case ('-t')
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) t_fin
                 case ('-dt')
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) dt
+                case ('-v')
+                    call getarg(2 * (i - 1) + 2, arg)
+                    read(arg,*) vl
+                    vl = vl / ph0
                 case ('-unif')
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) unif

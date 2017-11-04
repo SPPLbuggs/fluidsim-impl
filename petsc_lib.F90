@@ -92,7 +92,7 @@
             call KSPSolve(ksp, b, x, ierr)
             
             call KSPGetConvergedReason(ksp, conv, ierr)
-            if ((my_id == 0) .and. (conv .ne. 2)) write(*,3) conv
+            if ((my_id == 0) .and. (conv < 0)) write(*,3) conv
             3 format('KSP did not converge; Reason = ',i0)
             
             ! Update variables with solution:
@@ -187,9 +187,10 @@
     b_pert = 0
         
     k_start = 1
-    k_stop  = 3
+    k_stop  = 5
     
-    if (g%ny > 1) k_stop = 5
+    if (g%ny == 1) k_stop  = 3
+    if (g%nx == 1) k_start = 3
     
     do K = k_start, k_stop
         if ((K .eq. 1) .and. (g%type_x(i_loc-1,j_loc-1) .ge. 0)) then

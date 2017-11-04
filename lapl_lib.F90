@@ -50,6 +50,6 @@ module lapl_lib
         call elecEqn(g, i, j, ph, ne, dflxe)
         call ionEqn(g, i, j, ph, ni, dflxi)
         
-        b = dfdx + dfdy + (ni(i,j) - ne(i,j) + dflxe - dflxi) * 100.
+        b = dfdx + dfdy + (ni(i,j) - ne(i,j) + dflxe - dflxi)
     end subroutine
 end module
