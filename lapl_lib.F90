@@ -47,8 +47,8 @@ module lapl_lib
            end if
         end if
         
-        call elecEqn(g, i, j, ph, ne, dflxe)
-        call ionEqn(g, i, j, ph, ni, dflxi)
+        !call elecEqn(g, i, j, ph, ne, dflxe)
+        !call ionEqn(g, i, j, ph, ni, dflxi)
         
         b = dfdx + dfdy + (ni(i,j) - ne(i,j) + dflxe - dflxi)
     end subroutine

@@ -1,4 +1,4 @@
-    module petsc_lib
+module petsc_lib
 #include <petsc/finclude/petscksp.h>
     use petscksp
     use props
@@ -20,7 +20,7 @@
         end subroutine
     end interface
     
-    contains
+contains
     
 ! *** Create PETSc Objects ***
     subroutine petsc_create(g, A, b, x)
@@ -92,8 +92,7 @@
             call KSPSolve(ksp, b, x, ierr)
             
             call KSPGetConvergedReason(ksp, conv, ierr)
-            if ((my_id == 0) .and. (conv < 0)) write(*,3) conv
-            3 format('KSP did not converge; Reason = ',i0)
+            if ((my_id == 0) .and. (conv < 0)) call ksp_div(conv)
             
             ! Update variables with solution:
             call upd_soln(g, x, f_pl)
@@ -277,4 +276,41 @@
     call MPI_Barrier(comm, ierr)
     end subroutine
     
-    end module
+! *** Get KSP Diverged Reason
+    subroutine ksp_div(val)
+        integer, intent(in) :: val
+        
+        if (val == -2) then
+            write(*,2)
+        else if (val == -3) then
+            write(*,3)
+        else if (val == -4) then
+            write(*,4)
+        else if (val == -5) then
+            write(*,5)
+        else if (val == -6) then
+            write(*,6)
+        else if (val == -7) then
+            write(*,7)
+        else if (val == -8) then
+            write(*,8)
+        else if (val == -9) then
+            write(*,9)
+        else if (val == -10) then
+            write(*,10)
+        else if (val == -11) then
+            write(*,11)
+        end if
+            
+    2 format('KSP diverged due to: Null')
+    3 format('KSP diverged due to: Max Iterations')
+    4 format('KSP diverged due to: Divergence Tol.')
+    5 format('KSP diverged due to: Breakdown')
+    6 format('KSP diverged due to: Breakdown BICG')
+    7 format('KSP diverged due to: Non-Symmetric')
+    8 format('KSP diverged due to: Indefinite PC')
+    9 format('KSP diverged due to: NaN or Infinite')
+    10 format('KSP diverged due to: Indefinite Matrix')
+    11 format('KSP diverged due to: PC Setup Failed')
+    end subroutine
+end module

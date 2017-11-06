@@ -38,7 +38,7 @@ temp = np.fromfile(path + '/f1.dat',dtype=float)
 f1 = temp.reshape([nt, ny, nx])
 
 tt, xx = np.meshgrid(t,x)
-yloc = 0
+yloc = ny/2
 
 tloc = [nt/10, nt/2, -1]
 tloc[0] = np.argmin(np.abs(t-0.2))

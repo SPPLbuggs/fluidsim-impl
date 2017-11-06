@@ -8,7 +8,7 @@ program main
     integer :: ts = 0, nx, ny, dof
     real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, sim_start, time
     character(80):: path
-    logical :: assem(3) = .True.
+    logical :: assem = .True.
     
     ! Initialize PETSc and MPI
     call PetscInitialize(petsc_null_character, ierr)
@@ -23,10 +23,10 @@ program main
     ny = 1
     px = 1
     py = 1
-    dof = 1
+    dof = 3
     l  = 1e-2 / x0
     w  = 1e-2 / x0
-    ew = 5e-3 / x0
+    ew = 1e-2 / x0
     dt = 1e-3
     t_fin = 10
     t_pr = t_fin/100.
@@ -50,21 +50,13 @@ program main
         if (g%t >= t_fin) exit
         
         ! Update boundary conditions
-        if (rx == 0) ph_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
-        if (ry == 0) ph_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        if (rx == 0) f_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        if (ry == 0) f_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
         
-        ! Solve laplace equation
-        call petsc_step(g, A1, b1, x1, ph_pl, laplEval, assem(1))
-        
-        ! Solve electron equation
-        ne_mi = ne_pl
-        call petsc_step(g, A2, b2, x2, ne_pl, elecEval, assem(2))
-        ne_pl = max(ne_pl, n_zero)
-        
-        ! Solve ion equation
-        ni_mi = ni_pl
-        call petsc_step(g, A3, b3, x3, ni_pl, ionEval, assem(3))
-        ni_pl = max(ni_pl, n_zero)
+        ! Solve system
+        f_mi = f_pl
+        call petsc_step(g, A1, b1, x1, f_pl, fEval, assem)
+        !f_pl(:,:,2:3) = max(f_pl(:,:,2:3), n_zero)
         
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
@@ -76,9 +68,9 @@ program main
         
         ! Save data
         if (t_sv <= g%t) then
-            call savedat(trim(path)//'f1.dat', ph_pl(:,:,1) * ph0)
-            call savedat(trim(path)//'f2.dat', ne_pl(:,:,1) / x0**3)
-            call savedat(trim(path)//'f3.dat', ni_pl(:,:,1) / x0**3)
+            call savedat(trim(path)//'f1.dat', f_pl(:,:,1) * ph0)
+            call savedat(trim(path)//'f2.dat', f_pl(:,:,2) / x0**3)
+            call savedat(trim(path)//'f3.dat', f_pl(:,:,3) / x0**3)
             
             call MPI_File_Open(comm, trim(path)//'time.dat', &
                 MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
@@ -98,8 +90,6 @@ program main
     end if
     
     call petsc_destroy(A1, b1, x1)
-    call petsc_destroy(A2, b2, x2)
-    call petsc_destroy(A3, b3, x3)
     call PetscFinalize(ierr)
 
 11 format('Timestep:', es9.2, '  Time:', es9.2, '  dT:', es9.2, '  Dur:', f6.2, ' sec')
