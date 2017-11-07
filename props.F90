@@ -36,7 +36,7 @@
                          p      = 3,   & ! torr
                          ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
                          n_zero = 1e8 * x0**3, &
-                         n_init = 1e12 * x0**3
+                         n_init = 1e14 * x0**3
     
     logical :: unif = .True.
     
@@ -284,6 +284,13 @@
     if (ierr .ne. MPI_SUCCESS) then
         if (my_id == 0) call MPI_File_Delete(path//'f4.dat', info, ierr);
         call MPI_File_Open(comm, path//'f4.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+    
+    call MPI_File_Open(comm, path//'f5.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        if (my_id == 0) call MPI_File_Delete(path//'f5.dat', info, ierr);
+        call MPI_File_Open(comm, path//'f5.dat', amode,  info, fh, ierr)
     end if
     call MPI_File_Close(fh, ierr)
     

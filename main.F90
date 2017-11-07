@@ -6,7 +6,7 @@ program main
     
     type(grid) :: g
     integer :: ts = 0, nx, ny, dof
-    real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, sim_start, time
+    real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, t_sv0, sim_start, time1, time2
     character(80):: path
     logical :: assem = .True.
     
@@ -17,21 +17,23 @@ program main
     call MPI_Comm_size(comm, nproc, ierr)
     
     call cpu_time(sim_start)
+    call cpu_time(time1)
     
     ! Default properties
     nx = 50
     ny = 1
     px = 1
     py = 1
-    dof = 4
+    dof = 5
     l  = 1e-2 / x0
     w  = 1e-2 / x0
     ew = 1e-2 / x0
-    dt = 1e-3
+    dt = 1e-5
     t_fin = 10
-    t_pr = t_fin/100.
-    t_sv = t_fin/100.
-    vl = 400 / ph0
+    t_pr = 2.7778e-3
+    t_sv = 1e-3
+    t_sv0 = 1e-3
+    vl = 300 / ph0
     
     ! Read input arguments
     call read_in
@@ -46,7 +48,7 @@ program main
     
     do
         ts = ts + 1
-        g%dt = min(g%dt*1.001, 5e-4)
+        g%dt = min(g%dt*1.001, 1d-4)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
@@ -61,10 +63,11 @@ program main
         
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
-            call cpu_time(time)
+            call cpu_time(time2)
             write(*,*)
-            write(*,11) float(ts), g%t, g%dt, time - sim_start
-            t_pr = t_pr + t_fin/100.
+            write(*,11) float(ts), g%t, g%dt, (time2 - time1)/10.0
+            t_pr = t_pr + 2.7778e-3
+            call cpu_time(time1)
         end if
         
         ! Save data
@@ -72,29 +75,31 @@ program main
             call savedat(trim(path)//'f1.dat', f_pl(:,:,1) * ph0)
             call savedat(trim(path)//'f2.dat', f_pl(:,:,2) / x0**3)
             call savedat(trim(path)//'f3.dat', f_pl(:,:,3) / x0**3)
-            call savedat(trim(path)//'f4.dat', f_pl(:,:,3) / x0**3 * ph0 / 1.5)
+            call savedat(trim(path)//'f4.dat', f_pl(:,:,4) / x0**3 * ph0 / 1.5)
+            call savedat(trim(path)//'f5.dat', f_pl(:,:,5) / x0**3)
             
             call MPI_File_Open(comm, trim(path)//'time.dat', &
                 MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
             if (my_id == 0) call MPI_File_Write(fh, g%t, 1, etype, stat, ierr)
             call MPI_File_Close(fh, ierr)
             
-            t_sv  = t_sv + t_fin/100.
+            t_sv  = t_sv + t_sv0
+            t_sv0 = t_sv0 * 1.01
         end if
     end do
     
     if (my_id == 0) then
-        call cpu_time(time)
+        call cpu_time(time1)
         write(*,*)
-        write(*,9) int(time - sim_start) / 3600, &
-                    mod(int(time - sim_start)/60,60)
+        write(*,9) int(time1 - sim_start) / 3600, &
+                    mod(int(time1 - sim_start)/60,60)
         write(*,*)
     end if
     
     call petsc_destroy(A1, b1, x1)
     call PetscFinalize(ierr)
 
-11 format('Timestep:', es9.2, '  Time:', es9.2, '  dT:', es9.2, '  Dur:', f6.2, ' sec')
+11 format('Timestep:', es9.2, '  Time:', es9.2, '  dT:', es9.2, '  time/us:', f7.2, ' hr')
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
     
 contains

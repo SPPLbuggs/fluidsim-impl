@@ -29,11 +29,11 @@ module ptcl_props
                          gam   =   0.1
     
 contains
-    subroutine calc_src(g, i, j, ph, ne, ni, nte, src)
+    subroutine calc_src(g, i, j, ph, ne, ni, nte, nm, src)
         type(grid), intent(in) :: g
         integer, intent(in)    :: i, j
-        real(8), intent(in)    :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
-        real(8), intent(out)   :: src(2)
+        real(8), intent(in)    :: ph(:,:), ne(:,:), ni(:,:), nte(:,:), nm(:,:)
+        real(8), intent(out)   :: src(3)
         real(8) :: Ex, Ey, vx, vy, tmp, Te(3), mu(2), D(2), k_ir, k_sc, k_si, k_ex, nu
         
         Ex = 0
@@ -90,18 +90,25 @@ contains
         nu   = get_nu(Te(2))
 
         ! evaluate source terms
-        src(1) =   k_ir * ninf * ne(i,j) &
-                 - beta * ni(i,j) * ne(i,j)
-                 !+ k_si * nm(i,j) * ne(i,j) &
-                 !+ k_mp * nm(i,j)**2
+        src(1) =   k_ir * ninf    * ne(i,j) &
+                 - beta * ni(i,j) * ne(i,j) &
+                 + k_si * nm(i,j) * ne(i,j) &
+                 + k_mp * nm(i,j)**2
         
-        ! -e flux_e . E
-        src(2) = - (vx * Ex + vy * Ey) &
+        src(2) = - (vx * Ex + vy * Ey)   &
                  - nte(i,j) * nu * me/mi &
-                 - h_ir * k_ir * ninf * ne(i,j) &
-                 - h_ex * k_ex * ninf * ne(i,j)
-                 !- h_si * k_si * nm(i,j,2) * ne(i,j,2) &
-                 !- h_sc * k_sc * nm(i,j,2) * ne(i,j,2)
+                 - h_ir * k_ir * ninf    * ne(i,j) &
+                 - h_ex * k_ex * ninf    * ne(i,j) &
+                 - h_si * k_si * nm(i,j) * ne(i,j) &
+                 - h_sc * k_sc * nm(i,j) * ne(i,j)
+                 
+        src(3) =   k_ex * ninf    * ne(i,j)    &
+                 - k_si * nm(i,j) * ne(i,j)    &
+                 - k_sc * nm(i,j) * ne(i,j)    &
+                 - k_r  * nm(i,j) * ne(i,j)    &
+                 - 2d0  * k_mp    * nm(i,j)**2 &
+                 - k_2q * ninf    * nm(i,j)    &
+                 - k_3q * ninf**2 * nm(i,j)
         
         src = src * g%dt
     end subroutine
