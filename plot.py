@@ -151,6 +151,44 @@ fig3.colorbar(im, cax = ax2)
 fig3.suptitle('Ion Density')
 gs3.tight_layout(fig3, rect=[0, 0, 1, 1])
 
+# Figure 4
+temp = np.fromfile(path + '/f4.dat',dtype=float)
+f4 = temp.reshape([nt, ny, nx])
+f4 = f4/f2
+
+fig4 = plt.figure(figsize=(5.25,5.25))
+gs4 = gridspec.GridSpec(2,2)
+gs4.set_width_ratios([0.97,0.03])
+ax0 = fig4.add_subplot(gs4[0,0])
+ax1 = fig4.add_subplot(gs4[1,0], sharex=ax0)
+ax2 = fig4.add_subplot(gs4[1,1])
+
+plt.setp(ax0.get_xticklabels(), visible=False)
+ax0.spines['right'].set_visible(False)
+ax0.spines['top'].set_visible(False)
+ax1.spines['right'].set_visible(False)
+ax1.spines['top'].set_visible(False)
+
+ax0.set_ylabel('Amplitude')
+ax0.set_yscale('log')
+ax1.set_xlabel('Position')
+ax1.set_ylabel('Time')
+
+ax0.plot(x, f4[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
+ax0.plot(x, f4[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
+ax0.plot(x, f4[tloc[2],yloc,:], label='{:.1f}'.format(t[tloc[2]]), color=colors[2])
+ax0.legend(bbox_to_anchor = (1.25, 0.55), loc = 5, frameon=False, title='Time')
+
+im = ax1.contourf(xx, tt, np.log10(f4[:,yloc,:]).T, 30, cmap='viridis')
+fig3.colorbar(im, cax = ax2)
+
+#ax0.set_ylim([-0.05, 1.05])
+#ax1.set_xlim([-0.05, 1.05])
+#ax1.set_ylim([-0.5, 10.5])
+
+fig4.suptitle('Electron Temperature')
+gs4.tight_layout(fig3, rect=[0, 0, 1, 1])
+
 if (ny > 1):
     fig2 = plt.figure(figsize = (4.5,4.5))
     plt.contourf(f1[-1,:,:], 30)

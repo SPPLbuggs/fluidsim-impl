@@ -280,6 +280,13 @@
     end if
     call MPI_File_Close(fh, ierr)
     
+    call MPI_File_Open(comm, path//'f4.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        if (my_id == 0) call MPI_File_Delete(path//'f4.dat', info, ierr);
+        call MPI_File_Open(comm, path//'f4.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+    
     call MPI_Type_Create_Subarray(2, (/ g%bx+2, g%by+2 /), (/ g%bx, g%by /), &
         (/ 1, 1 /), MPI_Order_Fortran, etype, core_array, ierr)
     call MPI_Type_Commit(core_array, ierr)

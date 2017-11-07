@@ -23,7 +23,7 @@ program main
     ny = 1
     px = 1
     py = 1
-    dof = 3
+    dof = 4
     l  = 1e-2 / x0
     w  = 1e-2 / x0
     ew = 1e-2 / x0
@@ -31,7 +31,7 @@ program main
     t_fin = 10
     t_pr = t_fin/100.
     t_sv = t_fin/100.
-    vl = 500 / ph0
+    vl = 400 / ph0
     
     ! Read input arguments
     call read_in
@@ -46,6 +46,7 @@ program main
     
     do
         ts = ts + 1
+        g%dt = min(g%dt*1.001, 3e-4)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
@@ -71,6 +72,7 @@ program main
             call savedat(trim(path)//'f1.dat', f_pl(:,:,1) * ph0)
             call savedat(trim(path)//'f2.dat', f_pl(:,:,2) / x0**3)
             call savedat(trim(path)//'f3.dat', f_pl(:,:,3) / x0**3)
+            call savedat(trim(path)//'f4.dat', f_pl(:,:,3) / x0**3 * ph0 / 1.5)
             
             call MPI_File_Open(comm, trim(path)//'time.dat', &
                 MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
