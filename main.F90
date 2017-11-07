@@ -46,7 +46,7 @@ program main
     
     do
         ts = ts + 1
-        g%dt = min(g%dt*1.001, 3e-4)
+        g%dt = min(g%dt*1.001, 5e-4)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         

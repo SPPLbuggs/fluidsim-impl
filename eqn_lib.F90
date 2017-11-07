@@ -51,15 +51,15 @@ module eqn_lib
         call elecEnrgEqn(g, i, j, f(:,:,1), f(:,:,4), f_mi(:,:,2), f_mi(:,:,4), dflxt_pl)
         call ionEqn(g, i, j, f(:,:,1), f(:,:,3), dflxi_pl)
         
-        call elecEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,2), f_mi(:,:,2), f_mi(:,:,4), dflxe_mi)
-        call elecEnrgEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,4), f_mi(:,:,2), f_mi(:,:,4), dflxt_mi)
-        call ionEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,3), dflxi_mi)
+        !call elecEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,2), f_mi(:,:,2), f_mi(:,:,4), dflxe_mi)
+        !call elecEnrgEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,4), f_mi(:,:,2), f_mi(:,:,4), dflxt_mi)
+        !call ionEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,3), dflxi_mi)
         
         call calc_src(g, i, j, f_mi(:,:,1), f_mi(:,:,2), f_mi(:,:,3), f_mi(:,:,4), src)
         
-        b_temp(2) = f(i,j,2) - f_mi(i,j,2) - src(1) + 0.5 * (dflxe_pl + dflxe_mi)
-        b_temp(3) = f(i,j,3) - f_mi(i,j,3) - src(1) + 0.5 * (dflxi_pl + dflxi_mi)
-        b_temp(4) = f(i,j,4) - f_mi(i,j,4) - src(2) + 0.5 * (dflxt_pl + dflxt_mi)
+        b_temp(2) = f(i,j,2) - f_mi(i,j,2) - src(1) + dflxe_pl !0.5 * (dflxe_pl + dflxe_mi)
+        b_temp(3) = f(i,j,3) - f_mi(i,j,3) - src(1) + dflxi_pl !0.5 * (dflxi_pl + dflxi_mi)
+        b_temp(4) = f(i,j,4) - f_mi(i,j,4) - src(2) + dflxt_pl !0.5 * (dflxt_pl + dflxt_mi)
     end subroutine
 end module
 
