@@ -6,12 +6,12 @@ module lapl_lib
     
     contains
 
-    subroutine laplEqn(g, i, j, ph, ne, ni, b)
+    subroutine laplEqn(g, i, j, ph, ne, ni, nte, b)
         type(grid), intent(in) :: g
         integer, intent(in)  :: i, j
-        real(8), intent(in)  :: ph(:,:), ne(:,:), ni(:,:)
+        real(8), intent(in)  :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
         real(8), intent(out) :: b
-        real(8) :: dfdx = 0, dfdy = 0, dflxe = 0, dflxi = 0
+        real(8) :: dfdx = 0, dfdy = 0, dflxe = 0, dflxi = 0, flxe_x(2), flxe_y(2)
         
         if (g%nx > 1) then
             ! Left symmetry boundary
@@ -47,9 +47,9 @@ module lapl_lib
            end if
         end if
         
-        !call elecEqn(g, i, j, ph, ne, dflxe)
-        !call ionEqn(g, i, j, ph, ni, dflxi)
+        call elecDFlx(g, i, j, ph, ne, ni, nte, dflxe, flxe_x, flxe_y)
+        call ionDFlx(g, i, j, ph, ni, dflxi)
         
-        b = dfdx + dfdy + (ni(i,j) - ne(i,j) + dflxe - dflxi)
+        b = dfdx + dfdy + ni(i,j) - ne(i,j) + g%dt * (dflxe - dflxi)
     end subroutine
 end module

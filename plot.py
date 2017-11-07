@@ -34,8 +34,22 @@ nx = len(x)
 ny = max(len(y),1)
 nt = len(t)
 
+# Load Data
 temp = np.fromfile(path + '/f1.dat',dtype=float)
 f1 = temp.reshape([nt, ny, nx])
+
+temp = np.fromfile(path + '/f2.dat',dtype=float)
+f2 = temp.reshape([nt, ny, nx])
+
+temp = np.fromfile(path + '/f3.dat',dtype=float)
+f3 = temp.reshape([nt, ny, nx])
+
+temp = np.fromfile(path + '/f4.dat',dtype=float)
+f4 = temp.reshape([nt, ny, nx])
+f4 = f4/f2
+
+temp = np.fromfile(path + '/f5.dat',dtype=float)
+f5 = temp.reshape([nt, ny, nx])
 
 tt, xx = np.meshgrid(t,x)
 yloc = ny/2
@@ -78,9 +92,6 @@ fig.suptitle('Field')
 gs.tight_layout(fig, rect=[0, 0, 1, 1])
 
 # Figure 2
-temp = np.fromfile(path + '/f2.dat',dtype=float)
-f2 = temp.reshape([nt, ny, nx])
-
 fig2 = plt.figure(figsize=(5.25,5.25))
 gs2 = gridspec.GridSpec(2,2)
 gs2.set_width_ratios([0.97,0.03])
@@ -115,9 +126,6 @@ fig2.suptitle('Electron Density')
 gs2.tight_layout(fig2, rect=[0, 0, 1, 1])
 
 # Figure 3
-temp = np.fromfile(path + '/f3.dat',dtype=float)
-f3 = temp.reshape([nt, ny, nx])
-
 fig3 = plt.figure(figsize=(5.25,5.25))
 gs3 = gridspec.GridSpec(2,2)
 gs3.set_width_ratios([0.97,0.03])
@@ -152,10 +160,6 @@ fig3.suptitle('Ion Density')
 gs3.tight_layout(fig3, rect=[0, 0, 1, 1])
 
 # Figure 4
-temp = np.fromfile(path + '/f4.dat',dtype=float)
-f4 = temp.reshape([nt, ny, nx])
-f4 = f4/f2
-
 fig4 = plt.figure(figsize=(5.25,5.25))
 gs4 = gridspec.GridSpec(2,2)
 gs4.set_width_ratios([0.97,0.03])
@@ -190,9 +194,6 @@ fig4.suptitle('Electron Temperature')
 gs4.tight_layout(fig4, rect=[0, 0, 1, 1])
 
 # Figure 5
-temp = np.fromfile(path + '/f5.dat',dtype=float)
-f5 = temp.reshape([nt, ny, nx])
-
 fig5 = plt.figure(figsize=(5.25,5.25))
 gs5 = gridspec.GridSpec(2,2)
 gs5.set_width_ratios([0.97,0.03])

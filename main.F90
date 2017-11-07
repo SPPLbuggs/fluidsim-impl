@@ -2,6 +2,7 @@ program main
     use props
     use petsc_lib
     use eqn_lib
+    use rk_lib
     implicit none
     
     type(grid) :: g
@@ -24,11 +25,11 @@ program main
     ny = 1
     px = 1
     py = 1
-    dof = 5
+    dof = 1
     l  = 1e-2 / x0
     w  = 1e-2 / x0
     ew = 1e-2 / x0
-    dt = 1e-5
+    dt = 1e-4
     t_fin = 10
     t_pr = 2.7778e-3
     t_sv = 1e-3
@@ -48,18 +49,32 @@ program main
     
     do
         ts = ts + 1
-        g%dt = min(g%dt*1.001, 1d-4)
+        !g%dt = min(g%dt*1.002, 1d-3)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
         ! Update boundary conditions
-        if (rx == 0) f_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
-        if (ry == 0) f_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        if (rx == 0) ph_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        if (ry == 0) ph_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
         
-        ! Solve system
-        f_mi = f_pl
-        call petsc_step(g, A1, b1, x1, f_pl, fEval, assem)
-        !f_pl(:,:,2:3) = max(f_pl(:,:,2:3), n_zero)
+        ! Solve ph, ne, ni, nte system
+        call petsc_step(g, A1, b1, x1, ph_pl, phEval, assem)
+        
+        ! Solve ne system
+        ne_mi = ne_pl
+        call rk_step(g, 4, ne_pl, ne_mi, neEval, n_zero)
+        
+        ! Solve ni system
+        ni_mi = ni_pl
+        call rk_step(g, 4, ni_pl, ni_mi, niEval, n_zero)
+        
+        ! Solve ni system
+        nte_mi = nte_pl
+        call rk_step(g, 4, nte_pl, nte_mi, nteEval, n_zero / ph0 / 100.)
+        
+        ! Solve nm system
+        nm_mi = nm_pl
+        call rk_step(g, 4, nm_pl, nm_mi, nmEval, n_zero)
         
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
@@ -72,11 +87,11 @@ program main
         
         ! Save data
         if (t_sv <= g%t) then
-            call savedat(trim(path)//'f1.dat', f_pl(:,:,1) * ph0)
-            call savedat(trim(path)//'f2.dat', f_pl(:,:,2) / x0**3)
-            call savedat(trim(path)//'f3.dat', f_pl(:,:,3) / x0**3)
-            call savedat(trim(path)//'f4.dat', f_pl(:,:,4) / x0**3 * ph0 / 1.5)
-            call savedat(trim(path)//'f5.dat', f_pl(:,:,5) / x0**3)
+            call savedat(trim(path)//'f1.dat', ph_pl(:,:,1) * ph0)
+            call savedat(trim(path)//'f2.dat', ne_pl(:,:,1) / x0**3)
+            call savedat(trim(path)//'f3.dat', ni_pl(:,:,1) / x0**3)
+            call savedat(trim(path)//'f4.dat', nte_pl(:,:,1) / x0**3 * ph0 / 1.5)
+            call savedat(trim(path)//'f5.dat', nm_pl(:,:,1) / x0**3)
             
             call MPI_File_Open(comm, trim(path)//'time.dat', &
                 MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)

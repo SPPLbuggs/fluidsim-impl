@@ -5,44 +5,76 @@ module eqn_lib
     use ion_lib
     implicit none
     
-    real(8), allocatable :: f_pl(:,:,:), f_mi(:,:,:)
+    real(8), allocatable :: ph_pl(:,:,:), ph_mi(:,:,:), &
+                            ne_pl(:,:,:), ne_mi(:,:,:), &
+                            ni_pl(:,:,:), ni_mi(:,:,:), &
+                            nte_pl(:,:,:), nte_mi(:,:,:), &
+                            nm_pl(:,:,:), nm_mi(:,:,:)
     
     contains
     
     subroutine eqn_init(g)
     type(grid), intent(in) :: g
-        allocate(f_pl(g%bx+2, g%by+2, 5), f_mi(g%bx+2, g%by+2, 5))
-        f_pl = n_init
-        f_pl(:,:,1) = 0
-        f_pl(:,:,4) = n_init / ph0 / 100.
+        allocate(ph_pl(g%bx+2, g%by+2, 1), ph_mi(g%bx+2, g%by+2, 1), &
+                 ne_pl(g%bx+2, g%by+2, 1), ne_mi(g%bx+2, g%by+2, 1), &
+                 ni_pl(g%bx+2, g%by+2, 1), ni_mi(g%bx+2, g%by+2, 1), &
+                 nte_pl(g%bx+2, g%by+2, 1), nte_mi(g%bx+2, g%by+2, 1), &
+                 nm_pl(g%bx+2, g%by+2, 1), nm_mi(g%bx+2, g%by+2, 1))
+        
+        ph_pl  = 0
+        ne_pl  = n_init
+        ni_pl  = n_init
+        nte_pl = n_init / ph0 / 100.
+        nm_pl  = n_init
     end subroutine
     
-    subroutine fEval(g, i, j, n, m, dof, f, b_temp)
+    subroutine phEval(g, i, j, n, m, dof, ph, b_temp)
         type(grid), intent(in) :: g
         integer, intent(in) :: i, j, n, m, dof
-        real(8), intent(in) :: f(n,m,dof)
+        real(8), intent(in) :: ph(n,m,dof)
         real(8), intent(out) :: b_temp(dof)
-        real(8) :: src(3), dflxe_pl, dflxi_pl, dflxt_pl, dflxm_pl, &
-                   dflxe_mi, dflxi_mi, dflxt_mi, dflxm_mi
         
-        call laplEqn(g, i, j, f(:,:,1), f(:,:,2), f(:,:,3), b_temp(1))
+        call laplEqn(g, i, j, ph(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
+                     nte_pl(:,:,1), b_temp(1))
+    end subroutine
+    
+    subroutine neEval(g, i, j, n, m, dof, ne, b_temp)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j, n, m, dof
+        real(8), intent(in) :: ne(n,m,dof)
+        real(8), intent(out) :: b_temp(dof)
         
-        call elecEqn(g, i, j, f(:,:,1), f(:,:,2), f_mi(:,:,2), f_mi(:,:,4), f_mi(:,:,3), dflxe_pl)
-        call elecEnrgEqn(g, i, j, f(:,:,1), f(:,:,4), f_mi(:,:,2), f_mi(:,:,4), f_mi(:,:,3), dflxt_pl)
-        call ionEqn(g, i, j, f(:,:,1), f(:,:,3), dflxi_pl)
-        call metaEqn(g, i, j, f(:,:,5), dflxm_pl)
+        call elecEqn(g, i, j, ph_pl(:,:,1), ni_pl(:,:,1), ne(:,:,1), &
+                     nte_pl(:,:,1), nm_pl(:,:,1), b_temp(1))
+    end subroutine
+    
+    subroutine niEval(g, i, j, n, m, dof, ni, b_temp)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j, n, m, dof
+        real(8), intent(in) :: ni(n,m,dof)
+        real(8), intent(out) :: b_temp(dof)
         
-        !call elecEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,2), f_mi(:,:,2), f_mi(:,:,4), f_mi(:,:,3), dflxe_mi)
-        !call elecEnrgEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,4), f_mi(:,:,2), f_mi(:,:,4), f_mi(:,:,3), dflxt_mi)
-        !call ionEqn(g, i, j, f_mi(:,:,1), f_mi(:,:,3), dflxi_mi)
-        !call metaEqn(g, i, j, f_mi(:,:,5), dflxm_mi)
+        call ionEqn(g, i, j, ph_pl(:,:,1), ni(:,:,1), ne_pl(:,:,1), &
+                    nte_pl(:,:,1), nm_pl(:,:,1), b_temp(1))
+    end subroutine
+    
+    subroutine nteEval(g, i, j, n, m, dof, nte, b_temp)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j, n, m, dof
+        real(8), intent(in) :: nte(n,m,dof)
+        real(8), intent(out) :: b_temp(dof)
         
-        call calc_src(g, i, j, f_mi(:,:,1), f_mi(:,:,2), f_mi(:,:,3), f_mi(:,:,4), f_mi(:,:,5), src)
+        call elecEnrgEqn(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
+                         nte(:,:,1), nm_pl(:,:,1), b_temp(1))
+    end subroutine
+    
+    subroutine nmEval(g, i, j, n, m, dof, nm, b_temp)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j, n, m, dof
+        real(8), intent(in) :: nm(n,m,dof)
+        real(8), intent(out) :: b_temp(dof)
         
-        b_temp(2) = f(i,j,2) - f_mi(i,j,2) - src(1) + dflxe_pl !+ 0.5 * (dflxe_pl + dflxe_mi)
-        b_temp(3) = f(i,j,3) - f_mi(i,j,3) - src(1) + dflxi_pl !+ 0.5 * (dflxi_pl + dflxi_mi)
-        b_temp(4) = f(i,j,4) - f_mi(i,j,4) - src(2) + dflxt_pl !+ 0.5 * (dflxt_pl + dflxt_mi)
-        b_temp(5) = f(i,j,5) - f_mi(i,j,5) - src(3) + dflxm_pl !+ 0.5 * (dflxm_pl + dflxm_mi)
+        call metaEqn(g, i, j, nm(:,:,1), ne_pl(:,:,1), nte_pl(:,:,1), b_temp(1))
     end subroutine
 end module
 

@@ -29,150 +29,29 @@ module ptcl_props
                          gam   =   0.1
     
 contains
-    subroutine calc_src(g, i, j, ph, ne, ni, nte, nm, src)
-        type(grid), intent(in) :: g
-        integer, intent(in)    :: i, j
-        real(8), intent(in)    :: ph(:,:), ne(:,:), ni(:,:), nte(:,:), nm(:,:)
-        real(8), intent(out)   :: src(3)
-        real(8) :: Ex, Ey, vx, vy, tmp, Te(3), mu(2), D(2), k_ir, k_sc, k_si, k_ex, nu
-        
-        Ex = 0
-        Ey = 0
-        vx = 0
-        vy = 0
-        
-        if (g%nx > 1) then
-            Ex = -0.5 * ((ph(i,j) - ph(i-1,j)) / g%dx(i-1) &
-                 + (ph(i+1,j) - ph(i,j)) / g%dx(i))
-            
-            Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
-            Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
-            
-            mu(1) = get_mue(0.5 * (Te(1) + Te(2)))
-            mu(2) = get_mue(0.5 * (Te(2) + Te(3)))
-            
-            D(1) = get_De(0.5 * (Te(1) + Te(2)))
-            D(2) = get_De(0.5 * (Te(2) + Te(3)))
-            
-            call calc_flux(ne(i-1:i,j), ph(i-1:i,j), -1, mu(1), D(1), g%dx(i-1), vx)
-            call calc_flux(ne(i:i+1,j), ph(i:i+1,j), -1, mu(2), D(2), g%dx(i), tmp)
-            
-            vx = 0.5 * (vx + tmp)
-        end if
-        
-        if (g%ny > 1) then
-            Ey = -0.5 * ((ph(i,j) - ph(i,j-1)) / g%dy(j-1) &
-                 + (ph(i,j+1) - ph(i,j)) / g%dy(j))
-            
-            Te(1) = get_Te(nte(i,j-1), ne(i,j-1))
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
-            Te(3) = get_Te(nte(i,j+1), ne(i,j+1))
-            
-            mu(1) = get_mue(0.5 * (Te(1) + Te(2)))
-            mu(2) = get_mue(0.5 * (Te(2) + Te(3)))
-            
-            D(1) = get_De(0.5 * (Te(1) + Te(2)))
-            D(2) = get_De(0.5 * (Te(2) + Te(3)))
-            
-            call calc_flux(ne(i,j-1:j), ph(i,j-1:j), -1, mu(1), D(1), g%dy(j-1), vy)
-            call calc_flux(ne(i,j:j+1), ph(i,j:j+1), -1, mu(2), D(2), g%dy(j), tmp)
-            
-            vy = 0.5 * (vy + tmp)
-        end if
-        
-        
-        ! rates and coefficients
-        k_ir = get_k_ir(Te(2))
-        k_sc = get_k_sc(Te(2))
-        k_si = get_k_si(Te(2))
-        k_ex = get_k_ex(Te(2))
-        nu   = get_nu(Te(2))
-
-        ! evaluate source terms
-        src(1) =   k_ir * ninf    * ne(i,j) &
-                 - beta * ni(i,j) * ne(i,j) &
-                 + k_si * nm(i,j) * ne(i,j) &
-                 + k_mp * nm(i,j)**2
-        
-        src(2) = - (vx * Ex + vy * Ey)   &
-                 - nte(i,j) * nu * me/mi &
-                 - h_ir * k_ir * ninf    * ne(i,j) &
-                 - h_ex * k_ex * ninf    * ne(i,j) &
-                 - h_si * k_si * nm(i,j) * ne(i,j) &
-                 - h_sc * k_sc * nm(i,j) * ne(i,j)
-                 
-        src(3) =   k_ex * ninf    * ne(i,j)    &
-                 - k_si * nm(i,j) * ne(i,j)    &
-                 - k_sc * nm(i,j) * ne(i,j)    &
-                 - k_r  * nm(i,j) * ne(i,j)    &
-                 - 2d0  * k_mp    * nm(i,j)**2 &
-                 - k_2q * ninf    * nm(i,j)    &
-                 - k_3q * ninf**2 * nm(i,j)
-        
-        src = src * g%dt
-    end subroutine
-        
-    subroutine calc_src2(g, i, j, ph, ne, src)
-        type(grid), intent(in) :: g
-        integer, intent(in)    :: i, j
-        real(8), intent(in)    :: ph(:,:), ne(:,:)
-        real(8), intent(out)   :: src
-        real(8) :: Ex(2), Ey(2), vx(2), vy(2), &
-                   mu, D, A = p*12e2*x0, B = p*180e2*x0/ph0
-
-        Ex = 0
-        Ey = 0
-        vx = 0
-        vy = 0
-        mu = get_mue(1.5 / ph0)
-        D = get_De(1.5 / ph0)
-        
-        if (g%nx > 1) then
-            Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
-            Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
-            
-            call calc_flux(ne(i-1:i,j), ph(i-1:i,j), -1, mu, D, g%dx(i-1), vx(1))
-            call calc_flux(ne(i:i+1,j), ph(i:i+1,j), -1, mu, D, g%dx(i), vx(2))
-        end if
-        
-        if (g%ny > 1) then
-            Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
-            Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
-            
-            call calc_flux(ne(i,j-1:j), ph(i,j-1:j), -1, mu, D, g%dy(j-1), vy(1))
-            call calc_flux(ne(i,j:j+1), ph(i,j:j+1), -1, mu, D, g%dy(j), vy(2))
-        end if
-        
-        src = g%dt * A * exp(-B / sqrt((0.5 * sum(Ex))**2 + (0.5 * sum(Ey))**2)) &
-              * sqrt((0.5 * sum(vx))**2 + (0.5 * sum(vy))**2)
-    end subroutine
     
-    subroutine calc_flux2(n, ph, q, mu, D, dx, flx)
-        integer, intent(in)  :: q
-        real(8), intent(in)  :: n(2), ph(2), mu, D, dx
-        real(8), intent(out) :: flx
-        
-        flx = 0.5 * (n(2) + n(1)) * (-q * mu * (ph(2) - ph(1)) &
-              - D * log(n(2) / n(1))) / dx
-    end subroutine
-    
-    subroutine calc_flux(n, ph, q, mu, D, dx, flx)
-        integer, intent(in)  :: q
-        real(8), intent(in)  :: n(2), ph(2), mu, D, dx
-        real(8), intent(out) :: flx
+    subroutine getFlx(flux, E, dh, q, mu, D, n_left, n_right)
+        real(8), intent(inout) :: flux
+        integer, intent(in) :: q
+        real(8), intent(in) :: E, dh, mu, D, n_left, n_right
         real(8) :: v, tol, arg
         
         tol = 1e-12
-        v = -q * mu * (ph(2) - ph(1)) / dx
-        arg = v * dx / D
+        v = q * mu * E   
+        arg = v * dh / D
         
-        if (abs(v) < tol) then
-            flx = D * (n(1) - n(2)) / dx
+        if (abs(q*E) < tol) then
+            flux = D * (n_left - n_right) / dh
+        
+        ! Positive exponentials blow up,
+        !  so rewrite always as negative exp.
+        !  this is the same analytical expression
         else if (arg > 0) then
-            flx = v * (n(1) - n(2) * exp(-arg)) / (1.0 - exp(-arg))
+            flux = v * (n_left - n_right * exp(max(-arg,-100d0))) &
+                / (1d0 - exp(max(-arg, -100d0)))
         else
-            flx = v * (n(2) - n(1) * exp( arg)) / (1.0 - exp( arg))
+            flux = v * (n_right - n_left * exp(max(arg, -100d0))) &
+                / (1d0  - exp( max(arg,-100d0)))
         end if
     end subroutine
     

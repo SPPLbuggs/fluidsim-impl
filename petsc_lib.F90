@@ -178,6 +178,7 @@ contains
     real(8) :: perturb, temp, b_pert(size(b_temp))
     integer :: i,j,k,d, width, k_start, k_stop
     integer, dimension(5,2):: stencil
+    logical :: zeroPert
 
     ! initialize
     temp = 0
@@ -220,15 +221,28 @@ contains
         j = j_loc + stencil(k,2)
         
         do d = 1, g%dof
+            zeroPert = .False.
             temp = f(i,j,d)
-            f(i,j,d) = f(i,j,d) + perturb
+            
+            if (abs(f(i,j,d)) > 1d-8) then
+                f(i,j,d) = f(i,j,d) + f(i,j,d) * perturb
+            else
+                zeroPert = .True.
+                f(i,j,d) = perturb
+            end if
                 
             call feval(g, i_loc, j_loc, g%bx+2, g%by+2, g%dof, f, b_pert)
             
-            cols(g%dof * (k-1) + d) = g%node(i,j,d)
-            A_temp(g%dof * (k-1) + d, :) = (b_pert - b_temp) / perturb
+            if (.not. zeroPert) then
+                f(i,j,d) = temp
+            else
+                f(i,j,d) = 1.0
+            end if
             
-            f(i,j,d) = temp
+            cols(g%dof * (k-1) + d) = g%node(i,j,d)
+            A_temp(g%dof * (k-1) + d, :) = (b_pert - b_temp) / (f(i,j,d) * perturb)
+            
+            if (zeroPert) f(i,j,d) = temp
         end do
     end do
     end subroutine
