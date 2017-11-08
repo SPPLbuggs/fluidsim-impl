@@ -49,7 +49,7 @@ program main
     
     do
         ts = ts + 1
-        g%dt = min(t_m, 1d-3)
+        !g%dt = min(t_m*20, g%dt*1.01)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
@@ -57,11 +57,9 @@ program main
         if (rx == 0) ph_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
         if (ry == 0) ph_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
         
-        ! Solve ph, ne, ni, nte system
-        call petsc_step(g, A1, b1, x1, ph_pl, phEval, (/ -1d0 /), assem(1))
-        
         ! Solve ne system
         t_m = 1
+        cfl = 1e9
         ne_mi = ne_pl
         call petsc_step(g, A2, b2, x2, ne_pl, neEval, (/ n_zero /), assem(2))
         
@@ -77,12 +75,16 @@ program main
         nm_mi = nm_pl
         call petsc_step(g, A5, b5, x5, nm_pl, nmEval, (/ n_zero /), assem(5))
         
+        ! Solve ph, ne, ni, nte system
+        ph_mi = ph_pl
+        call petsc_step(g, A1, b1, x1, ph_pl, phEval, (/ -1d0 /), assem(1))
+        
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
             call cpu_time(time2)
             write(*,*)
             write(*,11) float(ts), g%t, (time2 - time1)/10.0
-            write(*,12)  g%dt, t_m
+            write(*,12)  g%dt, t_m, cfl
             t_pr = t_pr + 2.7778e-3
             call cpu_time(time1)
         end if
@@ -121,7 +123,7 @@ program main
     call PetscFinalize(ierr)
 
 11 format('Timestep:', es9.2, '  Time:', es9.2, '  time/us:', f7.2, ' hr')
-12 format('  dT:', es9.2, '  tm:', es9.2)
+12 format('  dT:', es9.2, '  tm:', es9.2, '  cfl:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
     
 contains

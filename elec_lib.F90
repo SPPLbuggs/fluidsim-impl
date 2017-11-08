@@ -54,6 +54,8 @@ module elec_lib
         k_ex = get_k_ex(Te)
         nu   = get_nu(Te)
         
+        cfl = min(cfl, get_mue(Te) * abs(Ex) * g%dt / g%dlx(i-1))
+        
         ! evaluate source term
         src = -flxe_x(1) * Ex - flxe_y(1) * Ey &
               -nte(i,j) * nu * me/mi           &

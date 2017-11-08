@@ -5,7 +5,7 @@ module eqn_lib
     use ion_lib
     implicit none
     
-    real(8), parameter :: wTh = 0.5
+    real(8), parameter :: wTh = 1.0
     
     contains
     
@@ -22,6 +22,7 @@ module eqn_lib
         ni_pl  = n_init
         nte_pl = n_init / ph0 / 100.
         nm_pl  = n_init
+        ph_mi = 0
     end subroutine
     
     subroutine phEval(g, i, j, n, m, dof, ph, b_temp)
@@ -41,10 +42,11 @@ module eqn_lib
         real(8), intent(out) :: b_temp(dof)
         real(8) :: dflx(2), src
         
+        dflx = 0
         call elecDFlx(g, i, j, ph_pl(:,:,1), ne(:,:,1), ni_pl(:,:,1), &
                       nte_pl(:,:,1), dflx(1))
-        call elecDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
-                      nte_mi(:,:,1), dflx(2))
+        !call elecDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+        !              nte_mi(:,:,1), dflx(2))
         call elecSrc(ne_mi(i,j,1), ni_pl(i,j,1), nte_pl(i,j,1), &
                      nm_pl(i,j,1), src)
         
@@ -59,8 +61,9 @@ module eqn_lib
         real(8), intent(out) :: b_temp(dof)
         real(8) :: dflx(2), src
         
+        dflx = 0
         call ionDFlx(g, i, j, ph_pl(:,:,1), ni(:,:,1), dflx(1))
-        call ionDFlx(g, i, j, ph_mi(:,:,1), ni_mi(:,:,1), dflx(2))
+        !call ionDFlx(g, i, j, ph_mi(:,:,1), ni_mi(:,:,1), dflx(2))
         call ionSrc(ne_pl(i,j,1), ni_mi(i,j,1), nte_pl(i,j,1), &
                     nm_pl(i,j,1), src)
         
@@ -75,10 +78,11 @@ module eqn_lib
         real(8), intent(out) :: b_temp(dof)
         real(8) :: dflx(2), src
         
+        dflx = 0
         call elecEnrgDFlx(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
-                          nte_pl(:,:,1), dflx(1))
-        call elecEnrgDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
-                          nte_mi(:,:,1), dflx(2))
+                          nte(:,:,1), dflx(1))
+        !call elecEnrgDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+        !                  nte_mi(:,:,1), dflx(2))
         call elecEnrgSrc(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
                           nte(:,:,1), nm_pl(:,:,1), src)
         
@@ -93,8 +97,9 @@ module eqn_lib
         real(8), intent(out) :: b_temp(dof)
         real(8) :: dflx(2), src
         
+        dflx = 0
         call metaDFlx(g, i, j, nm(:,:,1), dflx(1))
-        call metaDFlx(g, i, j, nm_mi(:,:,1), dflx(2))
+        !call metaDFlx(g, i, j, nm_mi(:,:,1), dflx(2))
         call metaSrc(ne_pl(i,j,1), nte_pl(i,j,1), nm_mi(i,j,1), src)
         
         b_temp(1) = nm(i,j,1) - nm_mi(i,j,1) &

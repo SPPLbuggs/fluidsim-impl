@@ -3,7 +3,7 @@
     use petscksp
     implicit none
     
-    real(8) :: t_m = 1
+    real(8) :: t_m = 1, cfl = 1e9
     
     ! mpi variables
     integer :: comm, my_id, nproc, ierr, &
