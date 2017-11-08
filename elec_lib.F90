@@ -115,9 +115,9 @@ module elec_lib
             ! - center -
             if (g%type_x(i-1,j-1) == 0) then
                 ! rates and coefficients
-                Te(1) = get_Te(nte(i-1,j), ne_mi(i-1,j,1))
-                Te(2) = get_Te(nte(i,j),   ne_mi(i,j,1))
-                Te(3) = get_Te(nte(i+1,j), ne_mi(i+1,j,1))
+                Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
                 
                 mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))
                 mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
@@ -133,8 +133,8 @@ module elec_lib
             ! - left -
             else if (g%type_x(i-1,j-1) < 0) then
                 ! rates and coefficients
-                Te(2) = get_Te(nte(i,j),   ne_mi(i,j,1))
-                Te(3) = get_Te(nte(i+1,j), ne_mi(i+1,j,1))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
                 
                 mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
                 D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
@@ -166,8 +166,8 @@ module elec_lib
             ! - right -
             else if (g%type_x(i-1,j-1) > 0) then
                 ! rates and coefficients
-                Te(1) = get_Te(nte(i-1,j), ne_mi(i-1,j,1))
-                Te(2) = get_Te(nte(i,j),   ne_mi(i,j,1))
+                Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
                 
                 mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))        
                 D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
@@ -313,9 +313,9 @@ module elec_lib
             ! - center -
             if (g%type_x(i-1,j-1) == 0) then
                 ! rates and coefficients
-                Te(1) = get_Te(nte_mi(i-1,j,1), ne(i-1,j))
-                Te(2) = get_Te(nte_mi(i,j,1),   ne(i,j))
-                Te(3) = get_Te(nte_mi(i+1,j,1), ne(i+1,j))
+                Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
                 
                 mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))
                 mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
@@ -331,8 +331,8 @@ module elec_lib
             ! - left -
             else if (g%type_x(i-1,j-1) < 0) then
                 ! rates and coefficients
-                Te(2) = get_Te(nte_mi(i,j,1),   ne(i,j))
-                Te(3) = get_Te(nte_mi(i+1,j,1), ne(i+1,j))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
                 
                 mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
                 D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
@@ -365,8 +365,8 @@ module elec_lib
             ! - right -
             else if (g%type_x(i-1,j-1) > 0) then
                 ! rates and coefficients
-                Te(1) = get_Te(nte_mi(i-1,j,1), ne(i-1,j))
-                Te(2) = get_Te(nte_mi(i,j,1),   ne(i,j))
+                Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
                 
                 mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))        
                 D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))

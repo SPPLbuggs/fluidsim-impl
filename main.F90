@@ -49,13 +49,18 @@ program main
     
     do
         ts = ts + 1
-        !g%dt = min(t_m*20, g%dt*1.01)
+        g%dt = min(t_m*2, g%dt*1.01)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
         ! Update boundary conditions
-        if (rx == 0) ph_pl(1,:,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
-        if (ry == 0) ph_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
+        if (g%t < 1.0 / 16.0) then
+            if (rx == 0) ph_pl(1,:,1) = vl * sin(8.0 * pi * g%t)
+            if (ry == 0) ph_pl(:,1,1) = vl * sin(8.0 * pi * g%t)
+        else
+            if (rx == 0) ph_pl(1,:,1) = vl
+            if (ry == 0) ph_pl(:,1,1) = vl
+        end if
         
         ! Solve ne system
         t_m = 1

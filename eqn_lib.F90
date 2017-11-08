@@ -5,7 +5,7 @@ module eqn_lib
     use ion_lib
     implicit none
     
-    real(8), parameter :: wTh = 1.0
+    real(8), parameter :: wTh = 0.5
     
     contains
     
@@ -40,18 +40,21 @@ module eqn_lib
         integer, intent(in) :: i, j, n, m, dof
         real(8), intent(in) :: ne(n,m,dof)
         real(8), intent(out) :: b_temp(dof)
-        real(8) :: dflx(2), src
+        real(8) :: dflx(2), src(2)
         
         dflx = 0
+        src = 0
         call elecDFlx(g, i, j, ph_pl(:,:,1), ne(:,:,1), ni_pl(:,:,1), &
                       nte_pl(:,:,1), dflx(1))
-        !call elecDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
-        !              nte_mi(:,:,1), dflx(2))
-        call elecSrc(ne_mi(i,j,1), ni_pl(i,j,1), nte_pl(i,j,1), &
-                     nm_pl(i,j,1), src)
+        call elecDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+                      nte_mi(:,:,1), dflx(2))
+        call elecSrc(ne(i,j,1), ni_pl(i,j,1), nte_pl(i,j,1), &
+                     nm_pl(i,j,1), src(1))
+        call elecSrc(ne_mi(i,j,1), ni_mi(i,j,1), nte_mi(i,j,1), &
+                     nm_mi(i,j,1), src(2))
         
-        b_temp(1) = ne(i,j,1) - ne_mi(i,j,1) &
-                    + g%dt * (wTh * dflx(1) + (1 - wTh) * dflx(2) - src)
+        b_temp(1) = ne(i,j,1) - ne_mi(i,j,1) + g%dt * (wTh * (dflx(1) - src(1)) &
+                    + (1 - wTh) * (dflx(2) - src(2)))
     end subroutine
     
     subroutine niEval(g, i, j, n, m, dof, ni, b_temp)
@@ -59,16 +62,18 @@ module eqn_lib
         integer, intent(in) :: i, j, n, m, dof
         real(8), intent(in) :: ni(n,m,dof)
         real(8), intent(out) :: b_temp(dof)
-        real(8) :: dflx(2), src
+        real(8) :: dflx(2), src(2)
         
         dflx = 0
         call ionDFlx(g, i, j, ph_pl(:,:,1), ni(:,:,1), dflx(1))
-        !call ionDFlx(g, i, j, ph_mi(:,:,1), ni_mi(:,:,1), dflx(2))
-        call ionSrc(ne_pl(i,j,1), ni_mi(i,j,1), nte_pl(i,j,1), &
-                    nm_pl(i,j,1), src)
+        call ionDFlx(g, i, j, ph_mi(:,:,1), ni_mi(:,:,1), dflx(2))
+        call ionSrc(ne_pl(i,j,1), ni(i,j,1), nte_pl(i,j,1), &
+                    nm_pl(i,j,1), src(1))
+        call ionSrc(ne_mi(i,j,1), ni_mi(i,j,1), nte_mi(i,j,1), &
+                    nm_mi(i,j,1), src(2))
         
-        b_temp(1) = ni(i,j,1) - ni_mi(i,j,1) &
-                    + g%dt * (wTh * dflx(1) + (1 - wTh) * dflx(2) - src)
+        b_temp(1) = ni(i,j,1) - ni_mi(i,j,1) + g%dt * (wTh * (dflx(1) - src(1)) &
+                    + (1 - wTh) * (dflx(2) - src(2)))
     end subroutine
     
     subroutine nteEval(g, i, j, n, m, dof, nte, b_temp)
@@ -76,18 +81,21 @@ module eqn_lib
         integer, intent(in) :: i, j, n, m, dof
         real(8), intent(in) :: nte(n,m,dof)
         real(8), intent(out) :: b_temp(dof)
-        real(8) :: dflx(2), src
+        real(8) :: dflx(2), src(2)
         
         dflx = 0
+        src = 0
         call elecEnrgDFlx(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
                           nte(:,:,1), dflx(1))
-        !call elecEnrgDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
-        !                  nte_mi(:,:,1), dflx(2))
+        call elecEnrgDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+                          nte_mi(:,:,1), dflx(2))
         call elecEnrgSrc(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
-                          nte(:,:,1), nm_pl(:,:,1), src)
+                          nte(:,:,1), nm_pl(:,:,1), src(1))
+        call elecEnrgSrc(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+                          nte_mi(:,:,1), nm_mi(:,:,1), src(2))
         
-        b_temp(1) = nte(i,j,1) - nte_mi(i,j,1) &
-                    + g%dt * (wTh * dflx(1) + (1 - wTh) * dflx(2) - src)
+        b_temp(1) = nte(i,j,1) - nte_mi(i,j,1) + g%dt * (wTh * (dflx(1) - src(1)) &
+                    + (1 - wTh) * (dflx(2) - src(2)))
     end subroutine
     
     subroutine nmEval(g, i, j, n, m, dof, nm, b_temp)
@@ -95,15 +103,17 @@ module eqn_lib
         integer, intent(in) :: i, j, n, m, dof
         real(8), intent(in) :: nm(n,m,dof)
         real(8), intent(out) :: b_temp(dof)
-        real(8) :: dflx(2), src
+        real(8) :: dflx(2), src(2)
         
         dflx = 0
+        src = 0
         call metaDFlx(g, i, j, nm(:,:,1), dflx(1))
-        !call metaDFlx(g, i, j, nm_mi(:,:,1), dflx(2))
-        call metaSrc(ne_pl(i,j,1), nte_pl(i,j,1), nm_mi(i,j,1), src)
+        call metaDFlx(g, i, j, nm_mi(:,:,1), dflx(2))
+        call metaSrc(ne_pl(i,j,1), nte_pl(i,j,1), nm(i,j,1), src(1))
+        call metaSrc(ne_mi(i,j,1), nte_mi(i,j,1), nm_mi(i,j,1), src(2))
         
-        b_temp(1) = nm(i,j,1) - nm_mi(i,j,1) &
-                    + g%dt * (wTh * dflx(1) + (1 - wTh) * dflx(2) - src)
+        b_temp(1) = nm(i,j,1) - nm_mi(i,j,1) + g%dt * (wTh * (dflx(1) - src(1)) &
+                    + (1 - wTh) * (dflx(2) - src(2)))
     end subroutine
 end module
 
