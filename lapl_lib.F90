@@ -47,7 +47,7 @@ module lapl_lib
            end if
         end if
         
-        call elecDFlx(g, i, j, ph, ne, ni, nte, dflxe, flxe_x, flxe_y)
+        call elecDFlx(g, i, j, ph, ne, ni, nte, dflxe)
         call ionDFlx(g, i, j, ph, ni, dflxi)
         
         b = dfdx + dfdy + ni(i,j) - ne(i,j) + g%dt * (dflxe - dflxi)

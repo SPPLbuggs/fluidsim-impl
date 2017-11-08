@@ -5,41 +5,33 @@ module elec_lib
     
     contains
     
-    ! *** Electron Continuity ***
-    subroutine elecEqn(g, i, j, ph, ni, ne, nte, nm, b)
-        type(grid), intent(in) :: g
-        integer, intent(in)    :: i, j
-        real(8), intent(in)    :: ph(:,:), ni(:,:), ne(:,:), nte(:,:), nm(:,:)
-        real(8), intent(out)   :: b
-        real(8) :: dflx, Te, src, k_ir, k_si, flx_x(2), flx_y(2)
-        
-        call elecDFlx(g, i, j, ph, ne, ni, nte, dflx, flx_x, flx_y)
+    ! *** Electron Source Term ***
+    subroutine elecSrc(ne, ni, nte, nm, src)
+        real(8), intent(in)  :: ni, ne, nte, nm
+        real(8), intent(out) :: src
+        real(8) :: Te, k_ir, k_si
         
         ! rates and coefficients
-        Te = get_Te(nte(i,j), ne(i,j))
+        Te = get_Te(nte, ne)
         k_ir = get_k_ir(Te)
         k_si = get_k_si(Te)
 
         ! evaluate source terms
-        src =   k_ir * ninf    * ne(i,j) &
-              - beta * ni(i,j) * ne(i,j) &
-              + k_si * nm(i,j) * ne(i,j) &
-              + k_mp * nm(i,j)**2
-        
-        ! evaluate expression
-        b = -dflx + src
+        src =   k_ir * ninf    * ne &
+              - beta * ni * ne &
+              + k_si * nm * ne &
+              + k_mp * nm**2
     end subroutine
     
-    ! *** Electron Energy Continuity ***
-    subroutine elecEnrgEqn(g, i, j, ph, ne, ni, nte, nm, b)
+    ! *** Electron Energy Source Term ***
+    subroutine elecEnrgSrc(g, i, j, ph, ne, ni, nte, nm, src)
         type(grid), intent(in) :: g
         integer, intent(in)    :: i, j
         real(8), intent(in)    :: ph(:,:), ne(:,:), ni(:,:), nte(:,:), nm(:,:)
-        real(8), intent(out)   :: b
-        real(8) :: Ex, Ey, Te, dflx, src(3), k_ir, k_ex, k_sc, k_si, nu, flxe_x(2), flxe_y(2)
+        real(8), intent(out)   :: src
+        real(8) :: Ex, Ey, Te, k_ir, k_ex, k_sc, k_si, nu, flxe_x(2), flxe_y(2)
         
-        call elecDFlx(g, i, j, ph, ne, ni, nte, dflx, flxe_x, flxe_y)
-        call elecDEnrgFlx(g, i, j, ph, ne, ni, nte, dflx)
+        call elecFlx(g, i, j, ph, ne, ni, nte, flxe_x, flxe_y)
         
         flxe_x(1) = 0.5 * sum(flxe_x)
         Ex = -((ph(i+1,j) - ph(i,j)) / g%dx(i) &
@@ -57,30 +49,47 @@ module elec_lib
         k_ex = get_k_ex(Te)
         nu   = get_nu(Te)
 
-        ! evaluate source terms   
-        ! -e flux_e . E
-        src(1) = -(flxe_x(1) * Ex + flxe_y(1) * Ey)
-
-        ! -me/mg nu_e (Te - Tg)
-        src(2) = -nte(i,j) * nu * me/mi
-
-        ! reactions
-        src(3) = - h_ir * k_ir * ninf * ne(i,j) &
-                 - h_si * k_si * nm(i,j) * ne(i,j) &
-                 - h_ex * k_ex * ninf * ne(i,j)    &
-                 - h_sc * k_sc * nm(i,j) * ne(i,j)
-        
-        ! evaluate expression
-        b = -dflx + sum(src)
-    
+        ! evaluate source term
+        src = -flxe_x(1) * Ex - flxe_y(1) * Ey &
+              -nte(i,j) * nu * me/mi           &
+              -h_ir * k_ir * ninf    * ne(i,j) &
+              -h_si * k_si * nm(i,j) * ne(i,j) &
+              -h_ex * k_ex * ninf    * ne(i,j) &
+              -h_sc * k_sc * nm(i,j) * ne(i,j)
     end subroutine
 
-    ! *** Calculate Divergence of Electron Flux ***
-    subroutine elecDFlx(g, i, j, ph, ne, ni, nte, dflx, flx_x, flx_y)
+    ! *** Divergence of Electron Flux ***
+    subroutine elecDFlx(g, i, j, ph, ne, ni, nte, dflx)
         type(grid), intent(in) :: g
         integer, intent(in) :: i, j
         real(8), intent(in) :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
-        real(8), intent(out) :: dflx, flx_x(2), flx_y(2)
+        real(8), intent(out) :: dflx
+        real(8) :: flx_x(2), flx_y(2)
+        
+        call elecFlx(g, i, j, ph, ne, ni, nte, flx_x, flx_y)
+        
+        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+    end subroutine
+    
+    ! *** Divergence of Electron Energy Flux ***
+    subroutine elecEnrgDFlx(g, i, j, ph, ne, ni, nte, dflx)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j
+        real(8), intent(in) :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
+        real(8), intent(out) :: dflx
+        real(8) :: flx_x(2), flx_y(2)
+        
+        call elecEnrgFlx(g, i, j, ph, ne, ni, nte, flx_x, flx_y)
+        
+        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+    end subroutine
+    
+    ! *** Electron Flux ***
+    subroutine elecFlx(g, i, j, ph, ne, ni, nte, flx_x, flx_y)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j
+        real(8), intent(in) :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
+        real(8), intent(out) :: flx_x(2), flx_y(2)
         real(8) :: a, Te(3), mu(2), D(2), ve, Ex(2), flxi
 
         flx_x = 0
@@ -187,17 +196,15 @@ module elec_lib
                 flx_x(2) = 0
             end if
         end if
-        
-        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
     end subroutine
     
-    ! *** Calculate Divergence of Electron Energy Flux ***
-    subroutine elecDEnrgFlx(g, i, j, ph, ne, ni, nte, dflx)
+    ! *** Electron Energy Flux ***
+    subroutine elecEnrgFlx(g, i, j, ph, ne, ni, nte, flx_x, flx_y)
         type(grid), intent(in) :: g
         integer, intent(in) :: i, j
         real(8), intent(in) :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
-        real(8), intent(out) :: dflx
-        real(8) :: a, flx_x(2), flx_y(2), Te(3), mu(2), D(2), ve, Ex(2), flxi
+        real(8), intent(out) :: flx_x(2), flx_y(2)
+        real(8) :: a, Te(3), mu(2), D(2), ve, Ex(2), flxi
 
         flx_x = 0
         flx_y = 0
@@ -303,8 +310,6 @@ module elec_lib
                 flx_x(2) = 0
             end if
         end if
-        
-        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
     end subroutine
 end module
     

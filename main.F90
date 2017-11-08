@@ -9,7 +9,7 @@ program main
     integer :: ts = 0, nx, ny, dof
     real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, t_sv0, sim_start, time1, time2
     character(80):: path
-    logical :: assem = .True.
+    logical :: assem(5) = .True.
     
     ! Initialize PETSc and MPI
     call PetscInitialize(petsc_null_character, ierr)
@@ -21,7 +21,7 @@ program main
     call cpu_time(time1)
     
     ! Default properties
-    nx = 50
+    nx = 100
     ny = 1
     px = 1
     py = 1
@@ -58,23 +58,23 @@ program main
         if (ry == 0) ph_pl(:,1,1) = vl!sin(2.0 * 3.14159 * g%t / 10.0)
         
         ! Solve ph, ne, ni, nte system
-        call petsc_step(g, A1, b1, x1, ph_pl, phEval, assem)
+        call petsc_step(g, A1, b1, x1, ph_pl, phEval, (/ -1d0 /), assem(1))
         
         ! Solve ne system
         ne_mi = ne_pl
-        call rk_step(g, 4, ne_pl, ne_mi, neEval, n_zero)
+        call petsc_step(g, A2, b2, x2, ne_pl, neEval, (/ n_zero /), assem(2))
         
         ! Solve ni system
         ni_mi = ni_pl
-        call rk_step(g, 4, ni_pl, ni_mi, niEval, n_zero)
+        call petsc_step(g, A3, b3, x3, ni_pl, niEval, (/ n_zero /), assem(3))
         
         ! Solve ni system
         nte_mi = nte_pl
-        call rk_step(g, 4, nte_pl, nte_mi, nteEval, n_zero / ph0 / 100.)
+        call petsc_step(g, A4, b4, x4, nte_pl, nteEval, (/ n_zero / ph0 / 100. /), assem(4))
         
         ! Solve nm system
         nm_mi = nm_pl
-        call rk_step(g, 4, nm_pl, nm_mi, nmEval, n_zero)
+        call petsc_step(g, A5, b5, x5, nm_pl, nmEval, (/ n_zero /), assem(5))
         
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
@@ -112,6 +112,10 @@ program main
     end if
     
     call petsc_destroy(A1, b1, x1)
+    call petsc_destroy(A2, b2, x2)
+    call petsc_destroy(A3, b3, x3)
+    call petsc_destroy(A4, b4, x4)
+    call petsc_destroy(A5, b5, x5)
     call PetscFinalize(ierr)
 
 11 format('Timestep:', es9.2, '  Time:', es9.2, '  dT:', es9.2, '  time/us:', f7.2, ' hr')

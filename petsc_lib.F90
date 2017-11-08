@@ -5,8 +5,8 @@ module petsc_lib
     implicit none
     
     ! Petsc Variables
-    Mat A1, A2, A3
-    Vec b1, b2, b3, x1, x2, x3
+    Mat A1, A2, A3, A4, A5
+    Vec b1, b2, b3, b4, b5, x1, x2, x3, x4, x5
     KSP ksp
     PetscInt Istart, Iend, ii, jj, nn(1)
     
@@ -63,14 +63,15 @@ contains
     end subroutine
 
 ! *** Integration Step of f_pl using fEval ***
-    subroutine petsc_step(g, A, b, x, f_pl, fEval, assem)
+    subroutine petsc_step(g, A, b, x, f_pl, fEval, f_min, assem)
         type(grid), intent(in) :: g
         Mat A
         Vec b, x
         procedure(subIn) :: fEval
         real(8), intent(inout) :: f_pl(:,:,:)
+        real(8), intent(in)    :: f_min(:)
         logical, intent(inout) :: assem
-        integer :: iter, conv
+        integer :: d, iter, conv
         real(8) :: relErr
         
         if (assem) call petsc_create(g, A, b, x)
@@ -96,6 +97,10 @@ contains
             
             ! Update variables with solution:
             call upd_soln(g, x, f_pl)
+            
+            do d = 1, g%dof
+                if (f_min(d) > 0) f_pl(:,:,d) = max(f_pl(:,:,d), f_min(d))
+            end do
         end do
         
         assem = .False.

@@ -5,68 +5,80 @@ module ion_lib
     
     contains
     
-    ! *** Ion Continuity ***
-    subroutine ionEqn(g, i, j, ph, ni, ne, nte, nm, b)
-        type(grid), intent(in) :: g
-        integer, intent(in)    :: i, j
-        real(8), intent(in)    :: ph(:,:), ni(:,:), ne(:,:), nte(:,:), nm(:,:)
-        real(8), intent(out)   :: b
-        real(8) :: dflx, Te, src, k_ir, k_si
-        
-        call ionDFlx(g, i, j, ph, ni, dflx)
+    ! *** Ion Source Term ***
+    subroutine ionSrc(ne, ni, nte, nm, src)
+        real(8), intent(in)  :: ni, ne, nte, nm
+        real(8), intent(out) :: src
+        real(8) :: Te, k_ir, k_si
         
         ! rates and coefficients
-        Te = get_Te(nte(i,j), ne(i,j))
+        Te = get_Te(nte, ne)
         k_ir = get_k_ir(Te)
         k_si = get_k_si(Te)
 
         ! evaluate source terms
-        src =   k_ir * ninf    * ne(i,j) &
-              - beta * ni(i,j) * ne(i,j) &
-              + k_si * nm(i,j) * ne(i,j) &
-              + k_mp * nm(i,j)**2
-        
-        ! evaluate expression
-        b = -dflx + src
+        src =   k_ir * ninf    * ne &
+              - beta * ni * ne &
+              + k_si * nm * ne &
+              + k_mp * nm**2
     end subroutine
 
-    ! *** Metastable Continuity ***
-    subroutine metaEqn(g, i, j, nm, ne, nte, b)
-        type(grid), intent(in) :: g
-        integer, intent(in)    :: i, j
-        real(8), intent(in)    :: nm(:,:), ne(:,:), nte(:,:)
-        real(8), intent(out)   :: b
-        real(8) :: Te, dflx, src, k_ex, k_sc, k_si, nu
-        
-        call metaDFlx(g, i, j, nm, dflx)
+    ! *** Metastable Source Term ***
+    subroutine metaSrc(ne, nte, nm, src)
+        real(8), intent(in)  :: ne, nte, nm
+        real(8), intent(out) :: src
+        real(8) :: Te, k_ex, k_sc, k_si, nu
         
         ! rates and coefficients
-        Te = get_Te(nte(i,j), ne(i,j))
+        Te = get_Te(nte, ne)
         k_sc = get_k_sc(Te)
         k_si = get_k_si(Te)
         k_ex = get_k_ex(Te)
         nu   = get_nu(Te)
 
         ! evaluate source term
-        src =   k_ex * ninf    * ne(i,j) &
-              - k_si * nm(i,j) * ne(i,j) &
-              - k_sc * nm(i,j) * ne(i,j) &
-              - k_r  * nm(i,j) * ne(i,j) &
-              - 2d0  * k_mp    * nm(i,j)**2 &
-              - k_2q * ninf    * nm(i,j) &
-              - k_3q * ninf**2 * nm(i,j)
-        
-        ! evaluate expression
-        b = -dflx + src
+        src =   k_ex * ninf * ne &
+              - k_si * nm   * ne &
+              - k_sc * nm   * ne &
+              - k_r  * nm   * ne &
+              - 2d0  * k_mp * nm**2 &
+              - k_2q * ninf * nm  &
+              - k_3q * ninf**2 * nm
     end subroutine
     
-    ! *** Calculate Divergence of Ion Flux***
+    ! *** Divergence of Ion Flux ***
     subroutine ionDFlx(g, i, j, ph, ni, dflx)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j
+        real(8), intent(in) :: ph(:,:), ni(:,:)
+        real(8), intent(out) :: dflx
+        real(8) :: flx_x(2), flx_y(2)
+        
+        call ionFlx(g, i, j, ph, ni, flx_x, flx_y)
+        
+        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+    end subroutine
+    
+    ! *** Divergence of Metastable Flux ***
+    subroutine metaDFlx(g, i, j, nm, dflx)
+        type(grid), intent(in) :: g
+        integer, intent(in) :: i, j
+        real(8), intent(in) :: nm(:,:)
+        real(8), intent(out) :: dflx
+        real(8) :: flx_x(2), flx_y(2)
+        
+        call metaFlx(g, i, j, nm, flx_x, flx_y)
+        
+        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+    end subroutine
+    
+    ! *** Ion Flux ***
+    subroutine ionFlx(g, i, j, ph, ni, flx_x, flx_y)
         type(grid), intent(in) :: g
         integer, intent(in)    :: i, j
         real(8), intent(in)    :: ph(:,:), ni(:,:)
-        real(8), intent(out)   :: dflx
-        real(8) :: a, Ex(2), flx_x(2), flx_y(2)
+        real(8), intent(out)   :: flx_x(2), flx_y(2)
+        real(8) :: a, Ex(2)
         
         flx_x = 0
         flx_y = 0
@@ -132,17 +144,14 @@ module ion_lib
                 flx_x(2) = 0
             end if
         end if
-        
-        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
     end subroutine
     
-    ! *** Calculate Divergence of Metastable Flux ***
-    subroutine metaDFlx(g, i, j, nm, dflx)
+    ! *** Metastable Flux ***
+    subroutine metaFlx(g, i, j, nm, flx_x, flx_y)
         type(grid), intent(in) :: g
         integer, intent(in) :: i, j
         real(8), intent(in) :: nm(:,:)
-        real(8), intent(out) :: dflx
-        real(8) :: flx_x(2), flx_y(2)
+        real(8), intent(out) :: flx_x(2), flx_y(2)
         
         flx_x = 0
         flx_y = 0
@@ -218,8 +227,6 @@ module ion_lib
                 flx_y(2) = 0
             end if
         end if
-        
-        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
     end subroutine
 end module
     
