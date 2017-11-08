@@ -5,7 +5,7 @@ module eqn_lib
     use ion_lib
     implicit none
     
-    real(8), parameter :: wTh = 1.0
+    real(8), parameter :: wTh = 0.5
     
     contains
     
@@ -43,9 +43,8 @@ module eqn_lib
         
         call elecDFlx(g, i, j, ph_pl(:,:,1), ne(:,:,1), ni_pl(:,:,1), &
                       nte_pl(:,:,1), dflx(1))
-        !call elecDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
-        !              nte_mi(:,:,1), dflx(2))
-        dflx(2) = 0
+        call elecDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+                      nte_mi(:,:,1), dflx(2))
         call elecSrc(ne_mi(i,j,1), ni_pl(i,j,1), nte_pl(i,j,1), &
                      nm_pl(i,j,1), src)
         
@@ -61,8 +60,7 @@ module eqn_lib
         real(8) :: dflx(2), src
         
         call ionDFlx(g, i, j, ph_pl(:,:,1), ni(:,:,1), dflx(1))
-        !call ionDFlx(g, i, j, ph_mi(:,:,1), ni_mi(:,:,1), dflx(2))
-        dflx(2) = 0
+        call ionDFlx(g, i, j, ph_mi(:,:,1), ni_mi(:,:,1), dflx(2))
         call ionSrc(ne_pl(i,j,1), ni_mi(i,j,1), nte_pl(i,j,1), &
                     nm_pl(i,j,1), src)
         
@@ -79,9 +77,8 @@ module eqn_lib
         
         call elecEnrgDFlx(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
                           nte_pl(:,:,1), dflx(1))
-        !call elecEnrgDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
-        !                  nte_mi(:,:,1), dflx(2))
-        dflx(2) = 0
+        call elecEnrgDFlx(g, i, j, ph_mi(:,:,1), ne_mi(:,:,1), ni_mi(:,:,1), &
+                          nte_mi(:,:,1), dflx(2))
         call elecEnrgSrc(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
                           nte(:,:,1), nm_pl(:,:,1), src)
         

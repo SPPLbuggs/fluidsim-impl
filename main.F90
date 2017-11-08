@@ -49,7 +49,7 @@ program main
     
     do
         ts = ts + 1
-        g%dt = min(t_m * 10, 1d-3)
+        g%dt = min(t_m, 1d-3)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
