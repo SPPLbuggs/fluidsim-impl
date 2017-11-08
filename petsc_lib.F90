@@ -93,7 +93,10 @@ contains
             call KSPSolve(ksp, b, x, ierr)
             
             call KSPGetConvergedReason(ksp, conv, ierr)
-            if ((my_id == 0) .and. (conv < 0)) call ksp_div(conv)
+            if ((my_id == 0) .and. (conv < 0)) then
+                call ksp_div(conv)
+                exit
+            end if
             
             ! Update variables with solution:
             call upd_soln(g, x, f_pl)

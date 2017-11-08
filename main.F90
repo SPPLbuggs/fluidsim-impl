@@ -49,7 +49,7 @@ program main
     
     do
         ts = ts + 1
-        !g%dt = min(g%dt*1.002, 1d-3)
+        g%dt = min(t_m * 10, 1d-3)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
@@ -61,6 +61,7 @@ program main
         call petsc_step(g, A1, b1, x1, ph_pl, phEval, (/ -1d0 /), assem(1))
         
         ! Solve ne system
+        t_m = 1
         ne_mi = ne_pl
         call petsc_step(g, A2, b2, x2, ne_pl, neEval, (/ n_zero /), assem(2))
         
@@ -80,7 +81,8 @@ program main
         if ((t_pr <= g%t) .and. (my_id == 0)) then
             call cpu_time(time2)
             write(*,*)
-            write(*,11) float(ts), g%t, g%dt, (time2 - time1)/10.0
+            write(*,11) float(ts), g%t, (time2 - time1)/10.0
+            write(*,12)  g%dt, t_m
             t_pr = t_pr + 2.7778e-3
             call cpu_time(time1)
         end if
@@ -118,7 +120,8 @@ program main
     call petsc_destroy(A5, b5, x5)
     call PetscFinalize(ierr)
 
-11 format('Timestep:', es9.2, '  Time:', es9.2, '  dT:', es9.2, '  time/us:', f7.2, ' hr')
+11 format('Timestep:', es9.2, '  Time:', es9.2, '  time/us:', f7.2, ' hr')
+12 format('  dT:', es9.2, '  tm:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
     
 contains

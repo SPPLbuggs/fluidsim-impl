@@ -3,6 +3,9 @@ module elec_lib
     use ptcl_props
     implicit none
     
+    real(8), allocatable :: ne_pl(:,:,:), ne_mi(:,:,:), &
+                            nte_pl(:,:,:), nte_mi(:,:,:)
+    
     contains
     
     ! *** Electron Source Term ***
@@ -15,7 +18,9 @@ module elec_lib
         Te = get_Te(nte, ne)
         k_ir = get_k_ir(Te)
         k_si = get_k_si(Te)
-
+        
+        t_m = min(t_m, 1.0 / (get_mue(Te) * ne + ni * mui))
+        
         ! evaluate source terms
         src =   k_ir * ninf    * ne &
               - beta * ni * ne &
@@ -48,7 +53,7 @@ module elec_lib
         k_si = get_k_si(Te)
         k_ex = get_k_ex(Te)
         nu   = get_nu(Te)
-
+        
         ! evaluate source term
         src = -flxe_x(1) * Ex - flxe_y(1) * Ey &
               -nte(i,j) * nu * me/mi           &
@@ -68,7 +73,9 @@ module elec_lib
         
         call elecFlx(g, i, j, ph, ne, ni, nte, flx_x, flx_y)
         
-        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+        dflx = 0
+        if (g%nx > 1) dflx = dflx + (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+        if (g%ny > 1) dflx = dflx + (flx_y(2) - flx_y(1)) / g%dly(j-1)
     end subroutine
     
     ! *** Divergence of Electron Energy Flux ***
@@ -81,7 +88,9 @@ module elec_lib
         
         call elecEnrgFlx(g, i, j, ph, ne, ni, nte, flx_x, flx_y)
         
-        dflx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+        dflx = 0
+        if (g%nx > 1) dflx = dflx + (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+        if (g%ny > 1) dflx = dflx + (flx_y(2) - flx_y(1)) / g%dly(j-1)
     end subroutine
     
     ! *** Electron Flux ***
@@ -90,110 +99,194 @@ module elec_lib
         integer, intent(in) :: i, j
         real(8), intent(in) :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
         real(8), intent(out) :: flx_x(2), flx_y(2)
-        real(8) :: a, Te(3), mu(2), D(2), ve, Ex(2), flxi
+        real(8) :: a, Te(3), mu(2), D(2), ve, Ex(2), Ey(2), flxi
 
         flx_x = 0
         flx_y = 0
         
-        ! X-dir fields:
-        Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
-        Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
-        
         ! X-dir Fluxes:
-        ! - center -
-        if (g%type_x(i-1,j-1) == 0) then
-            ! rates and coefficients
-            Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
-            Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
+        if (g%nx > 1) then
+            ! X-dir fields:
+            Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
+            Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
             
-            mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))
-            mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
+            ! - center -
+            if (g%type_x(i-1,j-1) == 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte(i-1,j), ne_mi(i-1,j,1))
+                Te(2) = get_Te(nte(i,j),   ne_mi(i,j,1))
+                Te(3) = get_Te(nte(i+1,j), ne_mi(i+1,j,1))
+                
+                mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))
+                mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
+                
+                D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
+                D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
+                
+                call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
+                              ne(i-1,j), ne(i,j))
+                call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
+                              ne(i,j), ne(i+1,j))
             
-            D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
-            D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
-            
-            ! Flux at i - 1/2
-            call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
-                          ne(i-1,j), ne(i,j))
+            ! - left -
+            else if (g%type_x(i-1,j-1) < 0) then
+                ! rates and coefficients
+                Te(2) = get_Te(nte(i,j),   ne_mi(i,j,1))
+                Te(3) = get_Te(nte(i+1,j), ne_mi(i+1,j,1))
+                
+                mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
+                D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
 
-            ! Flux at i + 1/2
-            call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
-                          ne(i,j), ne(i+1,j))
-        
-        ! - left -
-        else if (g%type_x(i-1,j-1) < 0) then
-            ! rates and coefficients
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
-            Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
-            
-            mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
-            D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
+                call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
+                              ne(i,j), ne(i+1,j))
+                
+                ! - electrode -
+                if (g%type_x(i-1,j-1) == -2) then
+                    if (Ex(1) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(1) = get_mue(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ex(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                    flx_x(1) = - a * mu(1) * Ex(1) * ne(i,j) &
+                               - 0.25 * ve * ne(i,j) &
+                               - gam * flxi
 
-            ! Flux at i + 1/2
-            call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
-                          ne(i,j), ne(i+1,j))
-            
-            ! - electrode -
-            if (g%type_x(i-1,j-1) == -2) then
-                if (Ex(1) > 0) then
-                    a = 1
-                else
-                    a = 0
+                ! - vacuum -
+                else if (g%type_x(i-1,j-1) == -1) then
+                    flx_x(1) = 0
                 end if
+            
+            ! - right -
+            else if (g%type_x(i-1,j-1) > 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte(i-1,j), ne_mi(i-1,j,1))
+                Te(2) = get_Te(nte(i,j),   ne_mi(i,j,1))
                 
-                mu(1) = get_mue(Te(2))
-                ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))        
+                D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
                 
-                ! Flux at i - 1/2
-                flxi = (1 - a) * mui * Ex(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
+                              ne(i-1,j), ne(i,j))
                 
-                flx_x(1) = - a * mu(1) * Ex(1) * ne(i,j) &
-                           - 0.25 * ve * ne(i,j) &
-                           - gam * flxi
+                ! - electrode -
+                if (g%type_x(i-1,j-1) == 2) then
+                    if (-Ex(2) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(2) = get_mue(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ex(2) * ni(i,j) + 0.25 * vi * ni(i,j)
+                    
+                    flx_x(2) = - a * mu(2) * Ex(2) * ne(i,j) &
+                               + 0.25 * ve * ne(i,j) &
+                               - gam * flxi
 
-
-            ! - vacuum -
-            else if (g%type_x(i-1,j-1) == -1) then
-                ! Flux at i - 1/2
-                flx_x(1) = 0
+                ! - vacuum -
+                else if (g%type_x(i-1,j-1) == 1) then
+                    flx_x(2) = 0
+                end if
             end if
+        end if
         
-        ! - right -
-        else if (g%type_x(i-1,j-1) > 0) then
-            ! rates and coefficients
-            Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
+        ! Y-dir Fluxes:
+        if (g%ny > 1) then
+            ! Y-dir fields:
+            Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
+            Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
             
-            mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))        
-            D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
+            ! - center -
+            if (g%type_y(i-1,j-1) == 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte(i,j-1), ne(i,j-1))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i,j+1), ne(i,j+1))
+                
+                mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))
+                mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
+                
+                D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
+                D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
+                
+                call getFlx(flx_y(1), Ey(1), g%dy(j-1), -1, mu(1), D(1), &
+                              ne(i,j-1), ne(i,j))
+                call getFlx(flx_y(2), Ey(2), g%dx(j), -1, mu(2), D(2), &
+                              ne(i,j), ne(i,j+1))
             
-            ! Flux at i - 1/2
-            call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
-                          ne(i-1,j), ne(i,j))
-            
-            ! - electrode -
-            if (g%type_x(i-1,j-1) == 2) then
-                if (-Ex(2) > 0) then
-                    a = 1
-                else
-                    a = 0
-                end if
+            ! - left -
+            else if (g%type_y(i-1,j-1) < 0) then
+                ! rates and coefficients
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i,j+1), ne(i,j+1))
                 
-                mu(2) = get_mue(Te(2))
-                ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
-                
-                ! Flux at i + 1/2
-                flxi = (1 - a) * mui * Ex(2) * ni(i,j) + 0.25 * vi * ni(i,j)
-                
-                flx_x(2) = - a * mu(2) * Ex(2) * ne(i,j) &
-                           + 0.25 * ve * ne(i,j) &
-                           - gam * flxi
+                mu(2) = 0.5 * (get_mue(Te(2)) + get_mue(Te(3)))
+                D(2) = 0.5 * (get_De(Te(2)) + get_De(Te(3)))
 
-            ! - vacuum -
-            else if (g%type_x(i-1,j-1) == 1) then
-                ! Flux at i + 1/2
-                flx_x(2) = 0
+                call getFlx(flx_y(2), Ey(2), g%dy(j), -1, mu(2), D(2), &
+                              ne(i,j), ne(i,j+1))
+                
+                ! - electrode -
+                if (g%type_y(i-1,j-1) == -2) then
+                    if (Ey(1) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(1) = get_mue(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ey(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                    flx_y(1) = - a * mu(1) * Ey(1) * ne(i,j) &
+                               - 0.25 * ve * ne(i,j) &
+                               - gam * flxi
+
+                ! - vacuum -
+                else if (g%type_y(i-1,j-1) == -1) then
+                    flx_y(1) = 0
+                end if
+            
+            ! - right -
+            else if (g%type_y(i-1,j-1) > 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte(i,j-1), ne(i,j-1))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                
+                mu(1) = 0.5 * (get_mue(Te(1)) + get_mue(Te(2)))        
+                D(1) = 0.5 * (get_De(Te(1)) + get_De(Te(2)))
+                
+                call getFlx(flx_y(1), Ey(1), g%dy(j-1), -1, mu(1), D(1), &
+                              ne(i,j-1), ne(i,j))
+                
+                ! - electrode -
+                if (g%type_y(i-1,j-1) == 2) then
+                    if (-Ey(2) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(2) = get_mue(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ey(2) * ni(i,j) + 0.25 * vi * ni(i,j)
+                    
+                    flx_y(2) = - a * mu(2) * Ey(2) * ne(i,j) &
+                               + 0.25 * ve * ne(i,j) &
+                               - gam * flxi
+
+                ! - vacuum -
+                else if (g%type_y(i-1,j-1) == 1) then
+                    flx_y(2) = 0
+                end if
             end if
         end if
     end subroutine
@@ -204,110 +297,194 @@ module elec_lib
         integer, intent(in) :: i, j
         real(8), intent(in) :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
         real(8), intent(out) :: flx_x(2), flx_y(2)
-        real(8) :: a, Te(3), mu(2), D(2), ve, Ex(2), flxi
+        real(8) :: a, Te(3), mu(2), D(2), ve, Ex(2), Ey(2), flxi
 
         flx_x = 0
         flx_y = 0
         
-        ! X-dir fields:
-        Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
-        Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
-        
         ! X-dir Fluxes:
-        ! - center -
-        if (g%type_x(i-1,j-1) == 0) then
-            ! rates and coefficients
-            Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
-            Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
+        if (g%nx > 1) then
+            ! X-dir fields:
+            Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
+            Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
             
-            mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))
-            mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
+            ! - center -
+            if (g%type_x(i-1,j-1) == 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte_mi(i-1,j,1), ne(i-1,j))
+                Te(2) = get_Te(nte_mi(i,j,1),   ne(i,j))
+                Te(3) = get_Te(nte_mi(i+1,j,1), ne(i+1,j))
+                
+                mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))
+                mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
+                
+                D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+                D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+                
+                call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
+                              nte(i-1,j), nte(i,j))
+                call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
+                              nte(i,j), nte(i+1,j))
             
-            D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))
-            D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
-            
-            ! Flux at i - 1/2
-            call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
-                          nte(i-1,j), nte(i,j))
+            ! - left -
+            else if (g%type_x(i-1,j-1) < 0) then
+                ! rates and coefficients
+                Te(2) = get_Te(nte_mi(i,j,1),   ne(i,j))
+                Te(3) = get_Te(nte_mi(i+1,j,1), ne(i+1,j))
+                
+                mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
+                D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
 
-            ! Flux at i + 1/2
-            call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
-                          nte(i,j), nte(i+1,j))
-        
-        ! - left -
-        else if (g%type_x(i-1,j-1) < 0) then
-            ! rates and coefficients
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
-            Te(3) = get_Te(nte(i+1,j), ne(i+1,j))
-            
-            mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
-            D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+                call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
+                              nte(i,j), nte(i+1,j))
+                
+                ! - electrode -
+                if (g%type_x(i-1,j-1) == -2) then
+                    if (Ex(1) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(1) = get_mut(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ex(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                    flx_x(1) = - a * mu(1) * Ex(1) * nte(i,j) &
+                               - 1.0/3.0 * ve * nte(i,j) &
+                               - gam * Te(2) * flxi
 
-            ! Flux at i + 1/2
-            call getFlx(flx_x(2), Ex(2), g%dx(i), -1, mu(2), D(2), &
-                          nte(i,j), nte(i+1,j))
-            
-            ! - electrode -
-            if (g%type_x(i-1,j-1) == -2) then
-                if (Ex(1) > 0) then
-                    a = 1
-                else
-                    a = 0
+
+                ! - vacuum -
+                else if (g%type_x(i-1,j-1) == -1) then
+                    flx_x(1) = 0
                 end if
+            
+            ! - right -
+            else if (g%type_x(i-1,j-1) > 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte_mi(i-1,j,1), ne(i-1,j))
+                Te(2) = get_Te(nte_mi(i,j,1),   ne(i,j))
                 
-                mu(1) = get_mut(Te(2))
-                ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))        
+                D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))
                 
-                ! Flux at i - 1/2
-                flxi = (1 - a) * mui * Ex(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
+                              nte(i-1,j), nte(i,j))
                 
-                flx_x(1) = - a * mu(1) * Ex(1) * nte(i,j) &
-                           - 1.0/3.0 * ve * nte(i,j) &
-                           - gam * Te(2) * flxi
+                ! - electrode -
+                if (g%type_x(i-1,j-1) == 2) then
+                    if (-Ex(2) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(2) = get_mut(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ex(2) * ni(i,j) + 0.25 * vi * ni(i,j)
+                    flx_x(2) = - a * mu(2) * Ex(2) * nte(i,j) &
+                               + 1.0/3.0 * ve * nte(i,j) &
+                               - gam * Te(2) * flxi
 
-
-            ! - vacuum -
-            else if (g%type_x(i-1,j-1) == -1) then
-                ! Flux at i - 1/2
-                flx_x(1) = 0
+                ! - vacuum -
+                else if (g%type_x(i-1,j-1) == 1) then
+                    flx_x(2) = 0
+                end if
             end if
+        end if
         
-        ! - right -
-        else if (g%type_x(i-1,j-1) > 0) then
-            ! rates and coefficients
-            Te(1) = get_Te(nte(i-1,j), ne(i-1,j))
-            Te(2) = get_Te(nte(i,j),   ne(i,j))
+        ! Y-dir Fluxes:
+        if (g%ny > 1) then
+            ! Y-dir fields:
+            Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
+            Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
             
-            mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))        
-            D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+            ! - center -
+            if (g%type_y(i-1,j-1) == 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte(i,j-1), ne(i,j-1))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i,j+1), ne(i,j+1))
+                
+                mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))
+                mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
+                
+                D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+                D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
+                
+                call getFlx(flx_y(1), Ey(1), g%dy(j-1), -1, mu(1), D(1), &
+                              nte(i,j-1), nte(i,j))
+                call getFlx(flx_y(2), Ey(2), g%dy(j), -1, mu(2), D(2), &
+                              nte(i,j), nte(i,j+1))
             
-            ! Flux at i - 1/2
-            call getFlx(flx_x(1), Ex(1), g%dx(i-1), -1, mu(1), D(1), &
-                          nte(i-1,j), nte(i,j))
-            
-            ! - electrode -
-            if (g%type_x(i-1,j-1) == 2) then
-                if (-Ex(2) > 0) then
-                    a = 1
-                else
-                    a = 0
-                end if
+            ! - left -
+            else if (g%type_y(i-1,j-1) < 0) then
+                ! rates and coefficients
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                Te(3) = get_Te(nte(i,j+1), ne(i,j+1))
                 
-                mu(2) = get_mut(Te(2))
-                ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
-                
-                ! Flux at i + 1/2
-                flxi = (1 - a) * mui * Ex(2) * ni(i,j) + 0.25 * vi * ni(i,j)
-                
-                flx_x(2) = - a * mu(2) * Ex(2) * nte(i,j) &
-                           + 1.0/3.0 * ve * nte(i,j) &
-                           - gam * Te(2) * flxi
+                mu(2) = 0.5 * (get_mut(Te(2)) + get_mut(Te(3)))
+                D(2) = 0.5 * (get_Dt(Te(2)) + get_Dt(Te(3)))
 
-            ! - vacuum -
-            else if (g%type_x(i-1,j-1) == 1) then
-                ! Flux at i + 1/2
-                flx_x(2) = 0
+                call getFlx(flx_y(2), Ey(2), g%dy(j), -1, mu(2), D(2), &
+                              nte(i,j), nte(i,j+1))
+                
+                ! - electrode -
+                if (g%type_y(i-1,j-1) == -2) then
+                    if (Ey(1) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(1) = get_mut(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ey(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                    flx_y(1) = - a * mu(1) * Ey(1) * nte(i,j) &
+                               - 1.0/3.0 * ve * nte(i,j) &
+                               - gam * Te(2) * flxi
+
+
+                ! - vacuum -
+                else if (g%type_y(i-1,j-1) == -1) then
+                    flx_y(1) = 0
+                end if
+            
+            ! - right -
+            else if (g%type_y(i-1,j-1) > 0) then
+                ! rates and coefficients
+                Te(1) = get_Te(nte(i,j-1), ne(i,j-1))
+                Te(2) = get_Te(nte(i,j),   ne(i,j))
+                
+                mu(1) = 0.5 * (get_mut(Te(1)) + get_mut(Te(2)))        
+                D(1) = 0.5 * (get_Dt(Te(1)) + get_Dt(Te(2)))
+                
+                call getFlx(flx_y(1), Ey(1), g%dy(j-1), -1, mu(1), D(1), &
+                              nte(i,j-1), nte(i,j))
+                
+                ! - electrode -
+                if (g%type_y(i-1,j-1) == 2) then
+                    if (-Ey(2) > 0) then
+                        a = 1
+                    else
+                        a = 0
+                    end if
+                    
+                    mu(2) = get_mut(Te(2))
+                    ve = sqrt((16.0 * e * ph0 * Te(2)) / (3.0 * pi * me)) * t0 / x0
+                    
+                    flxi = (1 - a) * mui * Ey(2) * ni(i,j) + 0.25 * vi * ni(i,j)
+                    flx_y(2) = - a * mu(2) * Ey(2) * nte(i,j) &
+                               + 1.0/3.0 * ve * nte(i,j) &
+                               - gam * Te(2) * flxi
+
+                ! - vacuum -
+                else if (g%type_y(i-1,j-1) == 1) then
+                    flx_y(2) = 0
+                end if
             end if
         end if
     end subroutine

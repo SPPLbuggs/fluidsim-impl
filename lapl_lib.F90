@@ -4,6 +4,8 @@ module lapl_lib
     use ion_lib
     implicit none
     
+    real(8), allocatable :: ph_pl(:,:,:), ph_mi(:,:,:)
+    
     contains
 
     subroutine laplEqn(g, i, j, ph, ne, ni, nte, b)
@@ -11,7 +13,7 @@ module lapl_lib
         integer, intent(in)  :: i, j
         real(8), intent(in)  :: ph(:,:), ne(:,:), ni(:,:), nte(:,:)
         real(8), intent(out) :: b
-        real(8) :: dfdx = 0, dfdy = 0, dflxe = 0, dflxi = 0, flxe_x(2), flxe_y(2)
+        real(8) :: dfdx = 0, dfdy = 0, dflxe = 0, dflxi = 0
         
         if (g%nx > 1) then
             ! Left symmetry boundary

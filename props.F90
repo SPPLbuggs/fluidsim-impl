@@ -3,6 +3,8 @@
     use petscksp
     implicit none
     
+    real(8) :: t_m = 1
+    
     ! mpi variables
     integer :: comm, my_id, nproc, ierr, &
                rx, ry, px, py, north, south, east, west, &
