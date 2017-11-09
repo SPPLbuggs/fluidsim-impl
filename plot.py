@@ -188,7 +188,7 @@ fig4.colorbar(im, cax = ax2)
 
 #ax0.set_ylim([-0.05, 1.05])
 #ax1.set_xlim([-0.05, 1.05])
-#ax1.set_ylim([-0.5, 10.5])
+ax0.set_ylim([1e-2, f4.max()*1.05])
 
 fig4.suptitle('Electron Temperature')
 gs4.tight_layout(fig4, rect=[0, 0, 1, 1])
