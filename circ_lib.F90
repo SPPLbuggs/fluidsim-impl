@@ -48,9 +48,9 @@
                                  nte_pl(:,:,1), flxe_x, flxe_y)
                     
                     if (g%ny > 1) then
-                        Id = Id - (flxi_x(1) + flxe_x(1)) * g%dy(j-1)
+                        Id = Id + (flxi_x(1) - flxe_x(1)) * g%dy(j-1)
                     else
-                        Id = Id - (flxi_x(1) + flxe_x(1)) * g%w**2 * pi
+                        Id = Id + (flxi_x(1) - flxe_x(1)) * g%w**2 * pi
                     end if
                     
                 end do

@@ -5,7 +5,7 @@ module eqn_lib
     use ion_lib
     implicit none
     
-    real(8), parameter :: wTh = 1.0
+    real(8), parameter :: wTh = 0.75
     
     contains
     

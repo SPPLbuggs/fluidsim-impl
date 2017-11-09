@@ -3,7 +3,7 @@
     use petscksp
     implicit none
     
-    real(8) :: t_m = 1, cfl = 1e9
+    real(8) :: t_m = 1e9
     
     ! mpi variables
     integer :: comm, my_id, nproc, ierr, &
@@ -258,6 +258,20 @@
     if (ierr .ne. MPI_SUCCESS) then
         if (my_id == 0) call MPI_File_Delete(path//'time.dat', info, ierr);
         call MPI_File_Open(comm, path//'time.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+    
+    call MPI_File_Open(comm, path//'vd.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        if (my_id == 0) call MPI_File_Delete(path//'vd.dat', info, ierr);
+        call MPI_File_Open(comm, path//'vd.dat', amode,  info, fh, ierr)
+    end if
+    call MPI_File_Close(fh, ierr)
+    
+    call MPI_File_Open(comm, path//'id.dat', amode,  info, fh, ierr)
+    if (ierr .ne. MPI_SUCCESS) then
+        if (my_id == 0) call MPI_File_Delete(path//'id.dat', info, ierr);
+        call MPI_File_Open(comm, path//'id.dat', amode,  info, fh, ierr)
     end if
     call MPI_File_Close(fh, ierr)
     

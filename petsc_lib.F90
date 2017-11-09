@@ -193,6 +193,7 @@ contains
     width = 0
     perturb = 1e-4
     b_pert = 0
+    stencil = 0
         
     k_start = 1
     k_stop  = 5

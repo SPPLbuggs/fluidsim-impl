@@ -39,12 +39,19 @@ module elec_lib
         call elecFlx(g, i, j, ph, ne, ni, nte, flxe_x, flxe_y)
         
         flxe_x(1) = 0.5 * sum(flxe_x)
-        Ex = -((ph(i+1,j) - ph(i,j)) / g%dx(i) &
-               +(ph(i,j) - ph(i-1,j)) / g%dx(i-1) &
-              ) / 2.0
-        
         flxe_y(1) = 0.5 * sum(flxe_y)
+        
+        Ex = 0
+        if (g%nx > 1) &
+            Ex = -((ph(i+1,j) - ph(i,j)) / g%dx(i) &
+                   +(ph(i,j) - ph(i-1,j)) / g%dx(i-1) &
+                  ) / 2.0
+        
         Ey = 0
+        if (g%ny > 1) &
+            Ey = -((ph(i,j+1) - ph(i,j)) / g%dy(j) &
+                   +(ph(i,j) - ph(i,j-1)) / g%dy(j-1) &
+                  ) / 2.0
         
         ! rates and coefficients
         Te = get_Te(nte(i,j), ne(i,j))
@@ -53,8 +60,6 @@ module elec_lib
         k_si = get_k_si(Te)
         k_ex = get_k_ex(Te)
         nu   = get_nu(Te)
-        
-        cfl = min(cfl, get_mue(Te) * abs(Ex) * g%dt / g%dlx(i-1))
         
         ! evaluate source term
         src = -flxe_x(1) * Ex - flxe_y(1) * Ey &
@@ -220,7 +225,7 @@ module elec_lib
                 
                 call getFlx(flx_y(1), Ey(1), g%dy(j-1), -1, mu(1), D(1), &
                               ne(i,j-1), ne(i,j))
-                call getFlx(flx_y(2), Ey(2), g%dx(j), -1, mu(2), D(2), &
+                call getFlx(flx_y(2), Ey(2), g%dy(j), -1, mu(2), D(2), &
                               ne(i,j), ne(i,j+1))
             
             ! - left -

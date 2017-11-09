@@ -7,8 +7,9 @@ program main
     implicit none
     
     type(grid) :: g
-    integer :: ts = 0, nx, ny, dof
-    real(8) :: l, w, ew, vl, dt, t_fin, t_pr, t_sv, t_sv0, sim_start, time1, time2
+    integer :: ts = 0, ts1, ts2, nx, ny, dof
+    real(8) :: l, w, ew, vl, r0, dt, t_fin, t_pr, t_sv, t_sv0, &
+               sim_start, time1, time2
     character(80):: path
     logical :: assem(5) = .True.
     
@@ -20,6 +21,7 @@ program main
     
     call cpu_time(sim_start)
     call cpu_time(time1)
+    ts1 = 0
     
     ! Default properties
     nx = 100
@@ -28,14 +30,15 @@ program main
     py = 1
     dof = 1
     l  = 1e-2 / x0
-    w  = 1.5e-2 / x0
+    w  = 1e-2 / x0
     ew = 2e-2 / x0
     dt = 1e-4
     t_fin = 10
-    t_pr = 2.7778e-3
+    t_pr = 1e-2
     t_sv = 1e-3
     t_sv0 = 1e-3
     vl = 500 / ph0
+    r0 = 1e6
     
     ! Read input arguments
     call read_in
@@ -44,14 +47,14 @@ program main
     path = 'Output/'
     call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
     call eqn_init(g)
-    call circ_init(vl, 1d6)
+    call circ_init(vl, r0)
     
     g%t  = 0
     g%dt = dt
     
     do
         ts = ts + 1
-        !g%dt = min(g%dt*1.01, 1e0)
+        g%dt = min(g%dt*1.001, 2d-3)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
@@ -60,8 +63,7 @@ program main
         if (ry == 0) ph_pl(:,1,1) = Vd_pl
         
         ! Solve ne system
-        t_m = 1
-        cfl = 1e9
+        t_m = 1e9
         ne_mi = ne_pl
         call petsc_step(g, A2, b2, x2, ne_pl, neEval, (/ n_zero /), assem(2))
         
@@ -87,12 +89,14 @@ program main
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
             call cpu_time(time2)
+            ts2 = ts
             write(*,*)
-            write(*,11) float(ts), g%t, (time2 - time1)/10.0
-            write(*,12)  g%dt, t_m, cfl
+            write(*,11) float(ts), g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
+            write(*,12)  g%dt, t_m
             write(*,13)  Vd_pl * ph0, Id * e / t0
-            t_pr = t_pr + 2.7778e-3
+            t_pr = t_pr + 1e-2
             call cpu_time(time1)
+            ts1 = ts
         end if
         
         ! Save data
@@ -106,6 +110,16 @@ program main
             call MPI_File_Open(comm, trim(path)//'time.dat', &
                 MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
             if (my_id == 0) call MPI_File_Write(fh, g%t, 1, etype, stat, ierr)
+            call MPI_File_Close(fh, ierr)
+            
+            call MPI_File_Open(comm, trim(path)//'vd.dat', &
+                MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
+            if (my_id == 0) call MPI_File_Write(fh, Vd_pl*ph0, 1, etype, stat, ierr)
+            call MPI_File_Close(fh, ierr)
+            
+            call MPI_File_Open(comm, trim(path)//'id.dat', &
+                MPI_MODE_WRonly + MPI_Mode_Append,  info, fh, ierr)
+            if (my_id == 0) call MPI_File_Write(fh, Id*e/t0, 1, etype, stat, ierr)
             call MPI_File_Close(fh, ierr)
             
             t_sv  = t_sv + t_sv0
@@ -128,8 +142,8 @@ program main
     call petsc_destroy(A5, b5, x5)
     call PetscFinalize(ierr)
 
-11 format('Timestep:', es9.2, '  Time:', es9.2, '  time/us:', f7.2, ' hr')
-12 format('  dT:', es9.2, '  tm:', es9.2, '  cfl:', es9.2)
+11 format('Timestep:', es9.2, '  Time:', es9.2, '  time/us:', f6.2, ' min')
+12 format('  dT:', es9.2, '  tm:', es9.2)
 13 format('  Vd:', es9.2, '  Id:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
     
@@ -187,6 +201,9 @@ contains
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) vl
                     vl = vl / ph0
+                case ('-r')
+                    call getarg(2 * (i - 1) + 2, arg)
+                    read(arg,*) r0
                 case ('-unif')
                     call getarg(2 * (i - 1) + 2, arg)
                     read(arg,*) unif
