@@ -3,6 +3,7 @@ program main
     use petsc_lib
     use eqn_lib
     use rk_lib
+    use circ_lib
     implicit none
     
     type(grid) :: g
@@ -27,14 +28,14 @@ program main
     py = 1
     dof = 1
     l  = 1e-2 / x0
-    w  = 1e-2 / x0
-    ew = 1e-2 / x0
+    w  = 1.5e-2 / x0
+    ew = 2e-2 / x0
     dt = 1e-4
     t_fin = 10
     t_pr = 2.7778e-3
     t_sv = 1e-3
     t_sv0 = 1e-3
-    vl = 300 / ph0
+    vl = 500 / ph0
     
     ! Read input arguments
     call read_in
@@ -43,24 +44,20 @@ program main
     path = 'Output/'
     call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
     call eqn_init(g)
+    call circ_init(vl, 1d6)
     
     g%t  = 0
     g%dt = dt
     
     do
         ts = ts + 1
-        g%dt = min(g%dt*1.01, 1e0)
+        !g%dt = min(g%dt*1.01, 1e0)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
         
         ! Update boundary conditions
-        if (g%t < 1.0 / 16.0) then
-            if (rx == 0) ph_pl(1,:,1) = vl * sin(8.0 * pi * g%t)
-            if (ry == 0) ph_pl(:,1,1) = vl * sin(8.0 * pi * g%t)
-        else
-            if (rx == 0) ph_pl(1,:,1) = vl
-            if (ry == 0) ph_pl(:,1,1) = vl
-        end if
+        if (rx == 0) ph_pl(1,:,1) = Vd_pl
+        if (ry == 0) ph_pl(:,1,1) = Vd_pl
         
         ! Solve ne system
         t_m = 1
@@ -84,12 +81,16 @@ program main
         ph_mi = ph_pl
         call petsc_step(g, A1, b1, x1, ph_pl, phEval, (/ -1d0 /), assem(1))
         
+        ! Solve external circuit system
+        call circ_step(g)
+        
         ! Print out some information
         if ((t_pr <= g%t) .and. (my_id == 0)) then
             call cpu_time(time2)
             write(*,*)
             write(*,11) float(ts), g%t, (time2 - time1)/10.0
             write(*,12)  g%dt, t_m, cfl
+            write(*,13)  Vd_pl * ph0, Id * e / t0
             t_pr = t_pr + 2.7778e-3
             call cpu_time(time1)
         end if
@@ -129,6 +130,7 @@ program main
 
 11 format('Timestep:', es9.2, '  Time:', es9.2, '  time/us:', f7.2, ' hr')
 12 format('  dT:', es9.2, '  tm:', es9.2, '  cfl:', es9.2)
+13 format('  Vd:', es9.2, '  Id:', es9.2)
 9  format('Simulation finished in ', i0, ' hr ', i0, ' min')
     
 contains

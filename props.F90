@@ -38,7 +38,7 @@
                          p      = 3,   & ! torr
                          ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
                          n_zero = 1e8 * x0**3, &
-                         n_init = 1e14 * x0**3
+                         n_init = 1e12 * x0**3
     
     logical :: unif = .True.
     
