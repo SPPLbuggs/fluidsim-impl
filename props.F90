@@ -156,23 +156,11 @@
     do j = 1, g%by
         do i = 1, g%bx
             if ((ry == 0) .and. (j == 1)) then
-                !if (x(i) .le. g%ew) then
-                if ((x(i) .le. 0.5 * (g%ew + g%l)) &
-                .and. (x(i) .ge. 0.5 * (-g%ew + g%l))) then
-                    g%type_y(i,j) = -2
-                else
-                    g%type_y(i,j) = -1
-                end if
+                g%type_y(i,j) = -1
             end if
             
             if ((ry == py-1) .and. (j == g%by)) then
-                !if (x(i) .le. g%ew) then
-                if ((x(i) .le. 0.5 * (g%ew + g%l)) &
-                .and. (x(i) .ge. 0.5 * (-g%ew + g%l))) then
-                    g%type_y(i,j) = 2
-                else
-                    g%type_y(i,j) = 1
-                end if
+                g%type_y(i,j) = 1
             end if
             
             if ((rx == 0) .and. (i == 1)) then
@@ -196,15 +184,6 @@
             end if
         end do
     end do
-    
-    if (g%ny == 1) then
-        g%type_x(1,1) = -2
-        g%type_x(g%bx,1) = 2
-    end if
-    if (g%nx == 1) then
-        g%type_y(1,1) = -2
-        g%type_y(1,g%by) = 2
-    end if
 
     g%dof   = dof
     g%nloc  = g%bx * g%by * g%dof

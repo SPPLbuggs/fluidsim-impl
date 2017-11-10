@@ -31,7 +31,7 @@ program main
     dof = 1
     l  = 1e-2 / x0
     w  = 1e-2 / x0
-    ew = 2e-2 / x0
+    ew = 1e-2 / x0
     dt = 1e-4
     t_fin = 10
     t_pr = 1e-2
@@ -57,10 +57,6 @@ program main
         g%dt = min(g%dt*1.001, 2d-3)
         g%t = g%t + g%dt
         if (g%t >= t_fin) exit
-        
-        ! Update boundary conditions
-        if (rx == 0) ph_pl(1,:,1) = Vd_pl
-        if (ry == 0) ph_pl(:,1,1) = Vd_pl
         
         ! Solve ne system
         t_m = 1e9

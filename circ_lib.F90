@@ -36,23 +36,22 @@
         
         do stage = 1, 4
             Id = 0
-            
             if (rx == 0) then
-                ph_pl(1,:,1) = Vd_mi
-                
                 i = 2
                 do j = 2, g%by + 1
-                
-                    call ionFlx(g, i, j, ph_pl(:,:,1), ni_pl(:,:,1), flxi_x, flxi_y)
-                    call elecFlx(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
-                                 nte_pl(:,:,1), flxe_x, flxe_y)
-                    
-                    if (g%ny > 1) then
-                        Id = Id + (flxi_x(1) - flxe_x(1)) * g%dy(j-1)
-                    else
-                        Id = Id + (flxi_x(1) - flxe_x(1)) * g%w**2 * pi
+                    if (g%type_x(1,j-1) == -2) then
+                        ph_pl(1,j,1) = Vd_pl
+                        
+                        call ionFlx(g, i, j, ph_pl(:,:,1), ni_pl(:,:,1), flxi_x, flxi_y)
+                        call elecFlx(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
+                                     nte_pl(:,:,1), flxe_x, flxe_y)
+                        
+                        if (g%ny > 1) then
+                            Id = Id + (flxi_x(1) - flxe_x(1)) * g%dy(j-1)
+                        else
+                            Id = Id + (flxi_x(1) - flxe_x(1)) * g%w**2 * pi
+                        end if
                     end if
-                    
                 end do
             end if
             
@@ -77,6 +76,10 @@
             else
                 Vd_pl = Vd_pl + b * g%dt / 6.0
             end if
+        end do
+        
+        do j = 2, g%by+1
+            if (g%type_x(1,j-1) == -2) ph_pl(1,j,1) = Vd_pl
         end do
     end subroutine
 
