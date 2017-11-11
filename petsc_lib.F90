@@ -63,14 +63,14 @@ contains
     end subroutine
 
 ! *** Integration Step of f_pl using fEval ***
-    subroutine petsc_step(g, A, b, x, f_pl, fEval, f_min, assem)
+    subroutine petsc_step(g, A, b, x, f_pl, fEval, f_min, assem, stat)
         type(grid), intent(in) :: g
         Mat A
         Vec b, x
         procedure(subIn) :: fEval
         real(8), intent(inout) :: f_pl(:,:,:)
         real(8), intent(in)    :: f_min(:)
-        logical, intent(inout) :: assem
+        logical, intent(inout) :: assem, stat
         integer :: d, iter, conv
         real(8) :: relErr
         
@@ -95,6 +95,7 @@ contains
             call KSPGetConvergedReason(ksp, conv, ierr)
             if ((my_id == 0) .and. (conv < 0)) then
                 call ksp_div(conv)
+                stat = .False.
                 exit
             end if
             

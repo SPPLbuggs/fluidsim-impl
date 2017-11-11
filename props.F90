@@ -17,7 +17,7 @@
         integer :: nx, ny, bx, by, offx, offy, nglob, nloc, dof
         integer, allocatable :: node(:,:,:), type_x(:,:), type_y(:,:)
         real(8) :: l, w, ew, dt, t
-        real(8), allocatable :: dx(:), dlx(:), dy(:), dly(:)
+        real(8), allocatable :: dx(:), dlx(:), dy(:), dly(:), r(:)
     end type
     
     ! fundamental constants
@@ -37,10 +37,10 @@
     real(8), parameter:: Tg     = 300, & ! kelvin
                          p      = 3,   & ! torr
                          ninf   = p * 101325d0 / 760d0 / kb / Tg * x0**3, &
-                         n_zero = 1e8 * x0**3, &
-                         n_init = 1e12 * x0**3
+                         n_zero = 1e8 * x0**3
+    real(8) :: n_init = 1e12 * x0**3
     
-    logical :: unif = .True.
+    logical :: unif = .True., cyl = .True., rwall = .True.
     
     contains
     
@@ -56,6 +56,9 @@
     
     g%nx = nx
     g%ny = ny
+    
+    if (g%ny == 1) cyl = .False.
+    if (g%ny == 1) rwall = .False.
     
     ! Coordinates of processor (my_id = ry * px + rx)
     rx = mod(my_id, px)
@@ -114,7 +117,7 @@
 
     if (g%ny > 1) then
         allocate( y(g%by+2), g%dy(g%by+1), g%dly(g%by) )
-        ytemp = 2.5 / float(g%ny+1)
+        ytemp = 1.25 / float(g%ny+1)
     
         if (unif) then
             do j = 1, g%by+2
@@ -147,6 +150,11 @@
         g%dy = g%dx(1)
         y = 1
     end if
+    
+    if (cyl) then
+        allocate(g%r(g%by+2))
+        g%r = y
+    end if
 
     ! Define node types
     allocate(g%type_x(g%bx,g%by), g%type_y(g%bx,g%by))
@@ -160,13 +168,15 @@
             end if
             
             if ((ry == py-1) .and. (j == g%by)) then
-                g%type_y(i,j) = 1
+                if (rwall) then
+                    g%type_y(i,j) = 3
+                else
+                    g%type_y(i,j) = 1
+                end if
             end if
             
             if ((rx == 0) .and. (i == 1)) then
-                !if (y(j) .le. g%ew) then
-                if ((y(j) .le. 0.5 * (g%ew + g%w)) &
-                .and. (y(j) .ge. 0.5 * (-g%ew + g%w))) then
+                if (y(j) .le. g%ew) then
                     g%type_x(i,j) = -2
                 else
                     g%type_x(i,j) = -1
@@ -174,9 +184,7 @@
             end if
             
             if ((rx == px-1) .and. (i == g%bx)) then
-                !if (y(j) .le. g%ew) then
-                if ((y(j) .le. 0.5 * (g%ew + g%w)) &
-                .and. (y(j) .ge. 0.5 * (-g%ew + g%w))) then
+                if (y(j) .le. g%ew) then
                     g%type_x(i,j) = 2
                 else
                     g%type_x(i,j) = 1

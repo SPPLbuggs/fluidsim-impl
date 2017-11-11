@@ -29,6 +29,8 @@ path = 'Output'
 x = np.fromfile(path + '/meshx.dat',dtype=float)
 y = np.fromfile(path + '/meshy.dat',dtype=float)
 t = np.fromfile(path + '/time.dat', dtype=float)
+Id = np.fromfile(path + '/id.dat', dtype=float)
+Vd = np.fromfile(path + '/vd.dat', dtype=float)
 
 nx = len(x)
 ny = max(len(y),1)
@@ -52,7 +54,7 @@ temp = np.fromfile(path + '/f5.dat',dtype=float)
 f5 = temp.reshape([nt, ny, nx])
 
 tt, xx = np.meshgrid(t,x)
-yloc = ny/2
+yloc = 0
 
 tloc = [nt/10, nt/2, -1]
 tloc[0] = np.argmin(np.abs(t-0.2))
@@ -227,21 +229,52 @@ fig5.colorbar(im, cax = ax2)
 fig5.suptitle('Metastable Density')
 gs5.tight_layout(fig5, rect=[0, 0, 1, 1])
 
+# Figure 6
+fig6 = plt.figure()
+gs6 = gridspec.GridSpec(1,1)
+ax0 = fig6.add_subplot(gs6[0])
+
+ax0.spines['right'].set_visible(False)
+ax0.spines['top'].set_visible(False)
+
+ax0.set_ylabel('Amplitude')
+ax0.set_yscale('log')
+ax0.set_xlabel('Time')
+ax0.set_xscale('log')
+
+ax0.plot(t, Vd, color=colors[0], label='Vd')
+ax0.plot(t, Id, color=colors[2], label='Id')
+ax0.legend(frameon=False, loc='best')
+
+gs6.tight_layout(fig6, rect=[0, 0, 1, 1])
+
 if (ny > 1):
-    fig2 = plt.figure(figsize = (4.5,4.5))
-    plt.contourf(f1[-1,:,:], 30)
-    plt.axis('equal')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Field')
-    plt.tight_layout(rect=[0,0,1,1])
+    fig = plt.figure(figsize = (4.5,3.5))
+    gs = gridspec.GridSpec(1,1)
+    ax0 = fig.add_subplot(gs[0])
     
-    fig3 = plt.figure(figsize = (4.5,4.5))
-    plt.contourf(f2[-1,:,:], 30)
+    ax0.spines['right'].set_visible(False)
+    ax0.spines['top'].set_visible(False)
+    
+    ax0.contourf(y,x,f1[-1,:,:].T, 30)
     plt.axis('equal')
-    plt.xlabel('X')
-    plt.ylabel('Y')
-    plt.title('Density')
-    plt.tight_layout(rect=[0,0,1,1])
+    ax0.set_ylabel('X')
+    ax0.set_xlabel('R')
+    fig.suptitle('Field')
+    gs.tight_layout(fig, rect=[0, 0, 1, 1])
+    
+    fig = plt.figure(figsize = (4.5,3.5))
+    gs = gridspec.GridSpec(1,1)
+    ax0 = fig.add_subplot(gs[0])
+    
+    ax0.spines['right'].set_visible(False)
+    ax0.spines['top'].set_visible(False)
+    
+    ax0.contourf(y,x,f2[-1,:,:].T, 30)
+    plt.axis('equal')
+    ax0.set_ylabel('X')
+    ax0.set_xlabel('R')
+    fig.suptitle('Density')
+    gs.tight_layout(fig, rect=[0, 0, 1, 1])
 
 plt.show()

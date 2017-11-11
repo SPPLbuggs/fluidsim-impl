@@ -35,17 +35,36 @@ module lapl_lib
         if (g%ny > 1) then
             ! Left symmetry boundary
             if (g%type_y(i-1,j-1) == -1) then
-                dfdy = (ph(i,j+1) - ph(i,j)) / g%dy(j) / g%dly(j-1)
+                if (cyl) then
+                    dfdy = (ph(i,j+1) - ph(i,j)) / g%dy(j) &
+                           * (g%r(j+1) + g%r(j)) / 2.0
+                else
+                    dfdy = (ph(i,j+1) - ph(i,j)) / g%dy(j)
+                end if
             
             ! Right symmetry boundary
             else if (g%type_y(i-1,j-1) == 1) then
-                dfdy = (ph(i,j-1) - ph(i,j)) / g%dy(j-1) / g%dly(j-1)
+                if (cyl) then
+                    dfdy = (ph(i,j-1) - ph(i,j)) / g%dy(j-1) &
+                           * (g%r(j) + g%r(j-1)) / 2.0
+                else 
+                    dfdy = (ph(i,j-1) - ph(i,j)) / g%dy(j-1)
+                end if
             
             ! Domain center
             else
-                dfdy = ((ph(i,j+1) - ph(i,j)) / g%dy(j) &
-                       -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)) &
-                       / g%dly(j-1)
+                if (cyl) then
+                    dfdy = (ph(i,j+1) - ph(i,j)) / g%dy(j)     &
+                           * (g%r(j+1) + g%r(j)) / 2.0           &
+                           - (ph(i,j) - ph(i,j-1)) / g%dy(j-1) &
+                           * (g%r(j) + g%r(j-1)) / 2.0
+                else
+                    dfdy = ((ph(i,j+1) - ph(i,j)) / g%dy(j) &
+                           -(ph(i,j) - ph(i,j-1)) / g%dy(j-1))
+                end if
+               
+               dfdy = dfdy / g%dly(j-1)
+               if (cyl) dfdy = dfdy / g%r(j)
            end if
         end if
         

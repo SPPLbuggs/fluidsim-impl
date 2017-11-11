@@ -44,7 +44,7 @@
                         
                         call ionFlx(g, i, j, ph_pl(:,:,1), ni_pl(:,:,1), flxi_x, flxi_y)
                         call elecFlx(g, i, j, ph_pl(:,:,1), ne_pl(:,:,1), ni_pl(:,:,1), &
-                                     nte_pl(:,:,1), flxe_x, flxe_y)
+                                     ne_pl(:,:,2), flxe_x, flxe_y)
                         
                         if (g%ny > 1) then
                             Id = Id + (flxi_x(1) - flxe_x(1)) * g%dy(j-1)

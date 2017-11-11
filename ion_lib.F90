@@ -55,13 +55,22 @@ module ion_lib
         integer, intent(in) :: i, j
         real(8), intent(in) :: ph(:,:), ni(:,:)
         real(8), intent(out) :: dflx
-        real(8) :: flx_x(2), flx_y(2)
+        real(8) :: flx_x(2), flx_y(2), dfdx = 0, dfdy = 0
         
         call ionFlx(g, i, j, ph, ni, flx_x, flx_y)
         
-        dflx = 0
-        if (g%nx > 1) dflx = dflx + (flx_x(2) - flx_x(1)) / g%dlx(i-1)
-        if (g%ny > 1) dflx = dflx + (flx_y(2) - flx_y(1)) / g%dly(j-1)
+        if (g%nx > 1) dfdx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+        if (g%ny > 1) then
+            if (cyl) then
+                dfdy = (flx_y(2) * (g%r(j+1) + g%r(j)) / 2.0   &
+                       - flx_y(1) * (g%r(j) + g%r(j-1)) / 2.0) &
+                       / g%dly(j-1) / g%r(j)
+            else
+                dfdy = (flx_y(2) - flx_y(1)) / g%dly(j-1)
+            end if
+        end if
+        
+        dflx = dfdx + dfdy
     end subroutine
     
     ! *** Divergence of Metastable Flux ***
@@ -70,13 +79,22 @@ module ion_lib
         integer, intent(in) :: i, j
         real(8), intent(in) :: nm(:,:)
         real(8), intent(out) :: dflx
-        real(8) :: flx_x(2), flx_y(2)
+        real(8) :: flx_x(2), flx_y(2), dfdx = 0, dfdy = 0
         
         call metaFlx(g, i, j, nm, flx_x, flx_y)
         
-        dflx = 0
-        if (g%nx > 1) dflx = dflx + (flx_x(2) - flx_x(1)) / g%dlx(i-1)
-        if (g%ny > 1) dflx = dflx + (flx_y(2) - flx_y(1)) / g%dly(j-1)
+        if (g%nx > 1) dfdx = (flx_x(2) - flx_x(1)) / g%dlx(i-1)
+        if (g%ny > 1) then
+            if (cyl) then
+                dfdy = (flx_y(2) * (g%r(j+1) + g%r(j)) / 2.0   &
+                       - flx_y(1) * (g%r(j) + g%r(j-1)) / 2.0) &
+                       / g%dly(j-1) / g%r(j)
+            else
+                dfdy = (flx_y(2) - flx_y(1)) / g%dly(j-1)
+            end if
+        end if
+        
+        dflx = dfdx + dfdy
     end subroutine
     
     ! *** Ion Flux ***
@@ -90,101 +108,83 @@ module ion_lib
         flx_x = 0
         flx_y = 0
         
+        ! X-dir fields:
+        Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
+        Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
+        
         ! X-dir Fluxes:
-        if (g%nx > 1) then
-            ! X-dir fields:
-            Ex(1) = -(ph(i,j) - ph(i-1,j)) / g%dx(i-1)
-            Ex(2) = -(ph(i+1,j) - ph(i,j)) / g%dx(i)
+        ! - center -
+        if (g%type_x(i-1,j-1) == 0) then
+            call getFlx(flx_x(1), Ex(1), g%dx(i-1), 1, mui, Di, &
+                          ni(i-1,j), ni(i,j))
+            call getFlx(flx_x(2), Ex(2), g%dx(i), 1, mui, Di, &
+                          ni(i,j), ni(i+1,j))
+        
+        ! - left -
+        else if (g%type_x(i-1,j-1) < 0) then
+            call getFlx(flx_x(2), Ex(2), g%dx(i), 1, mui, Di, &
+                          ni(i,j), ni(i+1,j))
             
-            ! - center -
-            if (g%type_x(i-1,j-1) == 0) then
-                call getFlx(flx_x(1), Ex(1), g%dx(i-1), 1, mui, Di, &
-                            ni(i-1,j), ni(i,j))
-                call getFlx(flx_x(2), Ex(2), g%dx(i), 1, mui, Di, &
-                            ni(i,j), ni(i+1,j))
-            
-            ! - left -
-            else if (g%type_x(i-1,j-1) < 0) then
-                call getFlx(flx_x(2), Ex(2), g%dx(i), 1, mui, Di, &
-                            ni(i,j), ni(i+1,j))
+            ! - electrode -
+            if (g%type_x(i-1,j-1) == -2) then
+                if (Ex(1) < 0) then
+                    a = 1
+                else
+                    a = 0
+                end if
                 
-                ! - electrode -
-                if (g%type_x(i-1,j-1) == -2) then
-                    if (Ex(1) < 0) then
-                        a = 1
-                    else
-                        a = 0
-                    end if
-                    
-                    flx_x(1) = a * mui * Ex(1) * ni(i,j) - 0.25 * vi * ni(i,j)
+                flx_x(1) = a * mui * Ex(1) * ni(i,j) - 0.25 * vi * ni(i,j)
 
-                ! - vacuum -
-                else if (g%type_x(i-1,j-1) == -1) then
-                    flx_x(1) = 0
-                end if
+            ! - vacuum -
+            else if (g%type_x(i-1,j-1) == -1) then
+                flx_x(1) = 0
+            end if
+        
+        ! - right -
+        else if (g%type_x(i-1,j-1) > 0) then
+            call getFlx(flx_x(1), Ex(1), g%dx(i-1), 1, mui, Di, &
+                          ni(i-1,j), ni(i,j))
             
-            ! - right -
-            else if (g%type_x(i-1,j-1) > 0) then
-                call getFlx(flx_x(1), Ex(1), g%dx(i-1), 1, mui, Di, &
-                            ni(i-1,j), ni(i,j))
-                
-                ! - electrode -
-                if (g%type_x(i-1,j-1) == 2) then
-                    if (Ex(2) > 0) then
-                        a = 1
-                    else
-                        a = 0
-                    end if
-                    
-                    flx_x(2) = a * mui * Ex(2) * ni(i,j) + 0.25 * vi * ni(i,j)
-                    
-                ! - vacuum -
-                else if (g%type_x(i-1,j-1) == 1) then
-                    flx_x(2) = 0
+            ! - electrode -
+            if (g%type_x(i-1,j-1) == 2) then
+                if (Ex(2) > 0) then
+                    a = 1
+                else
+                    a = 0
                 end if
+                
+                flx_x(2) = a * mui * Ex(2) * ni(i,j) + 0.25 * vi * ni(i,j)
+                
+            ! - vacuum -
+            else if (g%type_x(i-1,j-1) == 1) then
+                flx_x(2) = 0
             end if
         end if
         
-        ! Y-dir Fluxes:
+        ! Y-dir Fluxes
         if (g%ny > 1) then
-            ! X-dir fields:
             Ey(1) = -(ph(i,j) - ph(i,j-1)) / g%dy(j-1)
             Ey(2) = -(ph(i,j+1) - ph(i,j)) / g%dy(j)
             
             ! - center -
             if (g%type_y(i-1,j-1) == 0) then
                 call getFlx(flx_y(1), Ey(1), g%dy(j-1), 1, mui, Di, &
-                            ni(i,j-1), ni(i,j))
+                              ni(i,j-1), ni(i,j))
                 call getFlx(flx_y(2), Ey(2), g%dy(j), 1, mui, Di, &
-                            ni(i,j), ni(i,j+1))
+                              ni(i,j), ni(i,j+1))
             
             ! - left -
             else if (g%type_y(i-1,j-1) < 0) then
                 call getFlx(flx_y(2), Ey(2), g%dy(j), 1, mui, Di, &
-                            ni(i,j), ni(i,j+1))
-                
-                ! - electrode -
-                if (g%type_y(i-1,j-1) == -2) then
-                    if (Ey(1) < 0) then
-                        a = 1
-                    else
-                        a = 0
-                    end if
-                    
-                    flx_y(1) = a * mui * Ey(1) * ni(i,j) - 0.25 * vi * ni(i,j)
-
-                ! - vacuum -
-                else if (g%type_y(i-1,j-1) == -1) then
-                    flx_y(1) = 0
-                end if
+                              ni(i,j), ni(i,j+1))
+                flx_y(1) = 0
             
             ! - right -
             else if (g%type_y(i-1,j-1) > 0) then
                 call getFlx(flx_y(1), Ey(1), g%dy(j-1), 1, mui, Di, &
-                            ni(i,j-1), ni(i,j))
+                              ni(i,j-1), ni(i,j))
                 
-                ! - electrode -
-                if (g%type_x(i-1,j-1) == 2) then
+                if (rwall) then
                     if (Ey(2) > 0) then
                         a = 1
                     else
@@ -192,10 +192,7 @@ module ion_lib
                     end if
                     
                     flx_y(2) = a * mui * Ey(2) * ni(i,j) + 0.25 * vi * ni(i,j)
-                    
-                ! - vacuum -
-                else if (g%type_y(i-1,j-1) == 1) then
-                    ! Flux at i + 1/2
+                else
                     flx_y(2) = 0
                 end if
             end if
@@ -213,41 +210,36 @@ module ion_lib
         flx_y = 0
         
         ! X-dir Fluxes:
-        if (g%nx > 1) then
-            ! - center -
-            if (g%type_x(i-1,j-1) == 0) then
-                flx_x(1) = -0.5 * Dm * (nm(i,j) + nm(i-1,j)) &
-                           * log(nm(i,j) / nm(i-1,j)) / g%dx(i-1)
-                flx_x(2) = -0.5 * Dm * (nm(i+1,j) + nm(i,j)) &
-                           * log(nm(i+1,j) / nm(i,j)) / g%dx(i)
+        ! - center -
+        if (g%type_x(i-1,j-1) == 0) then
+            flx_x(1) = -Dm * (nm(i,j) - nm(i-1,j)) / g%dx(i-1)
             
-            ! - left -
-            else if (g%type_x(i-1,j-1) < 0) then
-                flx_x(2) = -0.5 * Dm * (nm(i+1,j) + nm(i,j)) &
-                           * log(nm(i+1,j) / nm(i,j)) / g%dx(i)
-                
-                ! - electrode -
-                if (g%type_x(i-1,j-1) == -2) then
-                    flx_x(1) = - 0.25 * vi * nm(i,j)
+            flx_x(2) = -Dm * (nm(i+1,j) - nm(i,j)) / g%dx(i)
+        
+        ! - left -
+        else if (g%type_x(i-1,j-1) < 0) then
+            flx_x(2) = -Dm * (nm(i+1,j) - nm(i,j)) / g%dx(i)
+            
+            ! - electrode -
+            if (g%type_x(i-1,j-1) == -2) then
+                flx_x(1) = - 0.25 * vi * nm(i,j)
 
-                ! - vacuum -
-                else if (g%type_x(i-1,j-1) == -1) then
-                    flx_x(1) = 0
-                end if
+            ! - vacuum -
+            else if (g%type_x(i-1,j-1) == -1) then
+                flx_x(1) = 0
+            end if
+        
+        ! - right -
+        else if (g%type_x(i-1,j-1) > 0) then
+            flx_x(1) = -Dm * (nm(i,j) - nm(i-1,j)) / g%dx(i-1)
             
-            ! - right -
-            else if (g%type_x(i-1,j-1) > 0) then
-                flx_x(1) = -0.5 * Dm * (nm(i,j) + nm(i-1,j)) &
-                           * log(nm(i,j) / nm(i-1,j)) / g%dx(i-1)
+            ! - electrode -
+            if (g%type_x(i-1,j-1) == 2) then
+                flx_x(2) = 0.25 * vi * nm(i,j)
                 
-                ! - electrode -
-                if (g%type_x(i-1,j-1) == 2) then
-                    flx_x(2) = 0.25 * vi * nm(i,j)
-                    
-                ! - vacuum -
-                else if (g%type_x(i-1,j-1) == 1) then
-                    flx_x(2) = 0
-                end if
+            ! - vacuum -
+            else if (g%type_x(i-1,j-1) == 1) then
+                flx_x(2) = 0
             end if
         end if
         
@@ -255,38 +247,21 @@ module ion_lib
         if (g%ny > 1) then
             ! - center -
             if (g%type_y(i-1,j-1) == 0) then
-                flx_y(1) = -0.5 * Dm * (nm(i,j) + nm(i,j-1)) &
-                           * log(nm(i,j) / nm(i,j-1)) / g%dy(j-1)
-                flx_y(2) = -0.5 * Dm * (nm(i,j+1) + nm(i,j)) &
-                           * log(nm(i,j+1) / nm(i,j)) / g%dy(j)
+                flx_y(1) = -Dm * (nm(i,j) - nm(i,j-1)) / g%dy(j-1)
+                
+                flx_y(2) = -Dm * (nm(i,j+1) - nm(i,j)) / g%dy(j)
             
             ! - left -
             else if (g%type_y(i-1,j-1) < 0) then
-                flx_y(2) = -0.5 * Dm * (nm(i,j+1) + nm(i,j)) &
-                           * log(nm(i,j+1) / nm(i,j)) / g%dy(j)
-                
-                ! - electrode -
-                if (g%type_y(i-1,j-1) == -2) then
-                    flx_y(1) = - 0.25 * vi * nm(i,j)
+                flx_y(2) = -Dm * (nm(i,j+1) - nm(i,j)) / g%dy(j)
 
-                ! - vacuum -
-                else if (g%type_y(i-1,j-1) == -1) then
-                    flx_y(1) = 0
-                end if
+                flx_y(1) = 0
             
             ! - right -
             else if (g%type_y(i-1,j-1) > 0) then
-                flx_y(1) = -0.5 * Dm * (nm(i,j) + nm(i,j-1)) &
-                           * log(nm(i,j) / nm(i,j-1)) / g%dy(j-1)
-                
-                ! - electrode -
-                if (g%type_y(i-1,j-1) == 2) then
-                    flx_y(2) = 0.25 * vi * nm(i,j)
-                    
-                ! - vacuum -
-                else if (g%type_y(i-1,j-1) == 1) then
-                    flx_y(2) = 0
-                end if
+                flx_y(1) = -Dm * (nm(i,j) - nm(i,j-1)) / g%dy(j-1)
+
+                flx_y(2) = 0
             end if
         end if
     end subroutine
