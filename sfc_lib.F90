@@ -1,69 +1,69 @@
 ! *** Dielectric Surface Charge Module ***
-    module sfc_lib
-    use props
-    use elec_lib
-    use ion_lib
-    use lapl_lib
-    implicit none
-    
-    real(8), allocatable :: sig(:)
-    
-    ! variables
-    public  :: sig
-    !private ::
-    
-    ! subroutines
-    public  :: sfc_step, sfc_init
-    !private :: 
-    
-    contains
+module sfc_lib
+  use props
+  use elec_lib
+  use ion_lib
+  use lapl_lib
+  implicit none
 
-! *** Surface Charge Timestepping ***
-    subroutine sfc_step(g)
-        type(grid), intent(in) :: g
-        integer :: i, j
-        real(8) :: a, fluxi, fluxe, Ey, Te, mue, ve
-        
-        if (ry == py-1) then
-            j = g%by+1
-            do i = 2, g%bx + 1
-                Ey = -(ph_pl(i,j+1,1) - ph_pl(i,j,1)) / g%dy(j)
-                
-                if (Ey > 0) then
-                    a = 1
-                else
-                    a = 0
-                end if
-                
-                Te  = get_Te(ne_pl(i,j,2), ne_pl(i,j,1))
-                mue = get_mue(Te)
-                ve  = sqrt((16.0 * e * ph0 * Te) / (3.0 * pi * me)) * t0 / x0
-                
-                fluxi = a * mui * Ey * ni_pl(i,j,1) + 0.25 * vi * ni_pl(i,j,1)
-                fluxe = (a - 1) * mue * Ey * ne_pl(i,j,1) + 0.25 * ve * ne_pl(i,j,1)
-                sig(i) = sig(i) + g%dt * (fluxi - fluxe)
-            end do
-        
-            call MPI_Send(sig(g%bx+1), 1, etype, east, 9, comm, ierr)
-            call MPI_Send(sig(2),      1, etype, west, 9, comm, ierr)
-            call MPI_Recv(sig(g%bx+2), 1, etype, east, 9, comm, stat, ierr)
-            call MPI_Recv(sig(1),      1, etype, west, 9, comm, stat, ierr)
+  real(8), allocatable :: sig(:)
+
+  ! variables
+  public  :: sig
+  !private ::
+
+  ! subroutines
+  public  :: sfc_step, sfc_init
+  !private ::
+
+contains
+
+  ! *** Surface Charge Timestepping ***
+  subroutine sfc_step(g)
+    type(grid), intent(in) :: g
+    integer :: i, j
+    real(8) :: a, fluxi, fluxe, Ey, Te, mue, ve
+
+    if (ry == py-1) then
+      j = g%by+1
+      do i = 2, g%bx + 1
+        Ey = -(ph_pl(i,j+1,1) - ph_pl(i,j,1)) / g%dy(j)
+
+        if (Ey > 0) then
+          a = 1
+        else
+          a = 0
         end if
-        
-        do i = 2, g%bx+1
-            if (g%type_y(i-1,g%by) == 1) ph_pl(i,g%by+1,1) = sig(i)
-        end do
-        
-        call MPI_Barrier(comm, ierr)
-    end subroutine
 
-! *** Surface Charge Initialization ***
-    subroutine sfc_init(g)
+        Te  = get_Te(ne_pl(i,j,2), ne_pl(i,j,1))
+        mue = get_mue(Te)
+        ve  = sqrt((16.0 * e * ph0 * Te) / (3.0 * pi * me)) * t0 / x0
+
+        fluxi = a * mui * Ey * ni_pl(i,j,1) + 0.25 * vi * ni_pl(i,j,1)
+        fluxe = (a - 1) * mue * Ey * ne_pl(i,j,1) + 0.25 * ve * ne_pl(i,j,1)
+        sig(i) = sig(i) + g%dt * (fluxi - fluxe)
+      end do
+
+      call MPI_Send(sig(g%bx+1), 1, etype, east, 9, comm, ierr)
+      call MPI_Send(sig(2),      1, etype, west, 9, comm, ierr)
+      call MPI_Recv(sig(g%bx+2), 1, etype, east, 9, comm, stat, ierr)
+      call MPI_Recv(sig(1),      1, etype, west, 9, comm, stat, ierr)
+    end if
+
+    do i = 2, g%bx+1
+      if (g%type_y(i-1,g%by) == 1) ph_pl(i,g%by+1,1) = sig(i)
+    end do
+
+    call MPI_Barrier(comm, ierr)
+  end subroutine
+
+  ! *** Surface Charge Initialization ***
+  subroutine sfc_init(g)
     type(grid), intent(inout) :: g
-    
+
     allocate(sig(g%bx+2))
-    
+
     sig = 0
-    
-    end subroutine
-    end module
+
+  end subroutine
+end module

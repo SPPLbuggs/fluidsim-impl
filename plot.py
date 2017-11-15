@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.gridspec as gridspec
+import sys
 
 size = 12
 med_size = 13
@@ -25,6 +26,10 @@ cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
 path = 'Output'
+if len(sys.argv) > 1:
+    d = sys.argv[1]
+    res = sys.argv[2]
+    path = 'Output/{}d_res_'.format(d) + res
 
 x = np.fromfile(path + '/meshx.dat',dtype=float)
 y = np.fromfile(path + '/meshy.dat',dtype=float)
