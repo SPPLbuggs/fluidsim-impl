@@ -8,7 +8,7 @@ program main
   implicit none
 
   type(grid) :: g
-  integer :: j, iter, ts = 0, ts1, ts2, nx, ny, dof
+  integer :: iter, ts = 0, ts1, ts2, nx, ny, dof
   real(8) :: l, w, ew, vl, res, dt, t_fin, t_pr, t_sv, t_sv0, &
              sim_start, time1, time2
   character(80):: path
@@ -34,8 +34,8 @@ program main
   w  = 1.5e-2 / x0
   ew = 2e-2 / x0
   dt = 1e-4
-  t_fin = 200
-  t_pr = 1e-3
+  t_fin = 50
+  t_pr = 1e-2
   t_sv = 1e-3
   t_sv0 = 1e-3
   vl = 500 / ph0
@@ -45,7 +45,7 @@ program main
   call read_in
 
   ! Initialize grid and arrays
-  path = 'Output/'
+  !path = 'Output/'
   call g_init(g, nx, ny, px, py, dof, l, w, ew, trim(path))
   call rk_init(g)
   call eqn_init(g)
@@ -57,50 +57,32 @@ program main
 
   do
     ts = ts + 1
+    g%dt = max(min(g%dt*1.0004, 1d-2), 1d-4)
     g%t = g%t + g%dt
     if (g%t >= t_fin) exit
 
     do iter = 1, 5
       conv = .True.
+      ! Solve ne system
+      t_m = 1e9
+      ne_mi(:,:,1) = ne_pl(:,:,1)
+      call petsc_step(g, A2, b2, x2, ne_pl(:,:,1:1), neEval, &
+                      (/ n_zero /), assem(2), conv)
 
-      if (.False.) then
-        ! Solve ne, nte system
-        t_m = 1e9
-        ne_mi = ne_pl
-        call rk_step(g, 5, 2, ne_pl, ne_mi, neEval_ex, &
-                     (/n_zero, n_zero/ph0/100./))
+      ! Solve ni system
+      ni_mi = ni_pl
+      call petsc_step(g, A3, b3, x3, ni_pl, niEval, &
+                      (/ n_zero /), assem(3), conv)
 
-        ! Solve ni system
-        ni_mi = ni_pl
-        call rk_step(g, 4, 1, ni_pl, ni_mi, niEval_ex, (/n_zero/))
+      ! Solve nte system
+      ne_mi(:,:,2) = ne_pl(:,:,2)
+      call petsc_step(g, A4, b4, x4, ne_pl(:,:,2:2), nteEval, &
+                      (/ n_zero / ph0 / 100. /), assem(4), conv)
 
-        ! Solve nm system
-        nm_mi = nm_pl
-        call rk_step(g, 4, 1, nm_pl, nm_mi, nmEval_ex, (/n_zero/))
-      else
-        g%dt = max(min(g%dt*1.01, 5d-3), 1d-4)
-
-        ! Solve ne system
-        t_m = 1e9
-        ne_mi(:,:,1) = ne_pl(:,:,1)
-        call petsc_step(g, A2, b2, x2, ne_pl(:,:,1:1), neEval, &
-                        (/ n_zero /), assem(2), conv)
-
-        ! Solve ni system
-        ni_mi = ni_pl
-        call petsc_step(g, A3, b3, x3, ni_pl, niEval, &
-                        (/ n_zero /), assem(3), conv)
-
-        ! Solve nte system
-        ne_mi(:,:,2) = ne_pl(:,:,2)
-        call petsc_step(g, A4, b4, x4, ne_pl(:,:,2:2), nteEval, &
-                        (/ n_zero / ph0 / 100. /), assem(4), conv)
-
-        ! Solve nm system
-        nm_mi = nm_pl
-        call petsc_step(g, A5, b5, x5, nm_pl, nmEval, &
-                        (/ n_zero /), assem(5), conv)
-      end if
+      ! Solve nm system
+      nm_mi = nm_pl
+      call petsc_step(g, A5, b5, x5, nm_pl, nmEval, &
+                      (/ n_zero /), assem(5), conv)
 
       ! Solve external circuit system
       call circ_step(g)
@@ -108,49 +90,10 @@ program main
       ! Solve surface charge system
       if (rwall) call sfc_step(g)
 
-      ! Update boundary conditions
-      if (rx == 0) then
-        do j = 2, g%by+1
-          if (g%type_x(1,j-1) == -2) then
-            ph_pl(1,j,1) = Vd_pl
-          else
-            ph_pl(1,j,1) = ph_pl(2,j,1)
-          end if
-        end do
-      end if
-
-      if (rx == px-1) then
-        do j = 2, g%by+1
-          if (g%type_x(g%bx,j-1) == 2) then
-            ph_pl(g%bx+2,j,1) = 0
-          else
-            ph_pl(g%bx+2,j,1) = ph_pl(g%bx+1,j,1)
-          end if
-        end do
-      end if
-
-      if (ry == 0) ph_pl(:,1,1) = ph_pl(:,2,1)
-      if (ry == py-1) then
-        if ((rwall) .and. (g%ny > 1)) then
-          ph_pl(:,g%by+2,1) = ph_pl(:,g%by+1,1) + g%dy(g%by+1) * sig
-        else
-          ph_pl(:,g%by+2,1) = ph_pl(:,g%by+1,1)
-        end if
-      end if
-
       ! Solve ph system
       ph_mi = ph_pl
       call petsc_step(g, A1, b1, x1, ph_pl, phEval, &
                       (/ -1d0 /), assem(1), conv)
-
-      if (ry == 0) ph_pl(:,1,1) = ph_pl(:,2,1)
-      if (ry == py-1) then
-        if ((rwall) .and. (g%ny > 1)) then
-          ph_pl(:,g%by+2,1) = ph_pl(:,g%by+1,1) + g%dy(g%by+1) * sig
-        else
-          ph_pl(:,g%by+2,1) = ph_pl(:,g%by+1,1)
-        end if
-      end if
 
       if (conv) exit
       if (iter == 5) then
@@ -168,7 +111,7 @@ program main
       write(*,11) ts, g%t, (time2 - time1) / g%dt / float(ts2-ts1) / 60.
       write(*,12)  g%dt, t_m
       write(*,13)  Vd_pl * ph0, Id * e / t0
-      t_pr = t_pr + 1e-3
+      t_pr = t_pr + 1e-2
       call cpu_time(time1)
       ts1 = ts
     end if

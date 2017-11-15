@@ -42,16 +42,34 @@ module elec_lib
     flxe_y(1) = 0.5 * sum(flxe_y)
 
     Ex = 0
-    if (g%nx > 1) &
-      Ex = -((ph(i+1,j) - ph(i,j)) / g%dx(i) &
-             +(ph(i,j) - ph(i-1,j)) / g%dx(i-1) &
-            ) / 2.0
+    if (g%nx > 1) then
+      if (g%type_x(i-1,j-1) == -1) then
+        Ex = -((ph(i+1,j) - ph(i,j)) / g%dx(i) &
+              ) / 2.0
+      else if(g%type_x(i-1,j-1) == 1) then
+        Ex = -((ph(i,j) - ph(i-1,j)) / g%dx(i-1) &
+              ) / 2.0
+      else
+        Ex = -((ph(i+1,j) - ph(i,j)) / g%dx(i) &
+               +(ph(i,j) - ph(i-1,j)) / g%dx(i-1) &
+              ) / 2.0
+      end if
+    end if
 
     Ey = 0
-    if (g%ny > 1) &
-      Ey = -((ph(i,j+1) - ph(i,j)) / g%dy(j) &
-             +(ph(i,j) - ph(i,j-1)) / g%dy(j-1) &
-            ) / 2.0
+    if (g%ny > 1) then
+      if (g%type_y(i-1,j-1) == -1) then
+        Ey = -((ph(i,j+1) - ph(i,j)) / g%dy(j) &
+              ) / 2.0
+      else if(g%type_y(i-1,j-1) == 1) then
+        Ey = -((ph(i,j) - ph(i,j-1)) / g%dy(j-1) &
+              ) / 2.0
+      else
+        Ey = -((ph(i,j+1) - ph(i,j)) / g%dy(j) &
+               +(ph(i,j) - ph(i,j-1)) / g%dy(j-1) &
+              ) / 2.0
+      end if
+    end if
 
     ! rates and coefficients
     Te = get_Te(nte(i,j), ne(i,j))

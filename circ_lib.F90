@@ -15,9 +15,9 @@ module circ_lib
   ! subroutines
   public  :: circ_step, circ_init
 
-  contains
+contains
 
-! *** External Circuit Timestepping ***
+  ! *** External Circuit Timestepping ***
   subroutine circ_step(g)
     type(grid), intent(in) :: g
     integer :: i, j

@@ -22,7 +22,7 @@ plt.rcParams['figure.figsize'] = (4.5, 3)
 #plt.rcParams['font.serif'] = ['Computer Modern']
 #mpl.rc('text', usetex=True)
 
-cm_subsection = np.linspace(0.0, 1.0, 4) 
+cm_subsection = np.linspace(0.0, 1.0, 4)
 colors = [ mpl.cm.viridis(x) for x in cm_subsection ]
 
 path = 'Output'
@@ -86,7 +86,7 @@ ax1.set_ylabel('Time')
 ax0.plot(x, f1[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f1[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
 ax0.plot(x, f1[tloc[2],yloc,:], label='{:.1f}'.format(t[tloc[2]]), color=colors[2])
-ax0.legend(bbox_to_anchor = (1.25, 0.55), loc = 5, frameon=False, title='Time')
+ax0.legend(bbox_to_anchor = (1.3, 0.55), loc = 5, frameon=False, title='Time')
 
 im = ax1.contourf(xx, tt, f1[:,yloc,:].T, 30, cmap='viridis')
 fig.colorbar(im, cax = ax2)
@@ -120,7 +120,7 @@ ax1.set_ylabel('Time')
 ax0.plot(x, f2[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f2[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
 ax0.plot(x, f2[tloc[2],yloc,:], label='{:.1f}'.format(t[tloc[2]]), color=colors[2])
-ax0.legend(bbox_to_anchor = (1.25, 0.55), loc = 5, frameon=False, title='Time')
+ax0.legend(bbox_to_anchor = (1.3, 0.55), loc = 5, frameon=False, title='Time')
 
 im = ax1.contourf(xx, tt, np.log10(f2[:,yloc,:]).T, 30, cmap='viridis')
 fig2.colorbar(im, cax = ax2)
@@ -154,7 +154,7 @@ ax1.set_ylabel('Time')
 ax0.plot(x, f3[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f3[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
 ax0.plot(x, f3[tloc[2],yloc,:], label='{:.1f}'.format(t[tloc[2]]), color=colors[2])
-ax0.legend(bbox_to_anchor = (1.25, 0.55), loc = 5, frameon=False, title='Time')
+ax0.legend(bbox_to_anchor = (1.3, 0.55), loc = 5, frameon=False, title='Time')
 
 im = ax1.contourf(xx, tt, np.log10(f3[:,yloc,:]).T, 30, cmap='viridis')
 fig3.colorbar(im, cax = ax2)
@@ -188,7 +188,7 @@ ax1.set_ylabel('Time')
 ax0.plot(x, f4[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f4[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
 ax0.plot(x, f4[tloc[2],yloc,:], label='{:.1f}'.format(t[tloc[2]]), color=colors[2])
-ax0.legend(bbox_to_anchor = (1.25, 0.55), loc = 5, frameon=False, title='Time')
+ax0.legend(bbox_to_anchor = (1.3, 0.55), loc = 5, frameon=False, title='Time')
 
 im = ax1.contourf(xx, tt, np.log10(f4[:,yloc,:]).T, 30, cmap='viridis')
 fig4.colorbar(im, cax = ax2)
@@ -222,7 +222,7 @@ ax1.set_ylabel('Time')
 ax0.plot(x, f5[tloc[0],yloc,:], label='{:.1f}'.format(t[tloc[0]]), color=colors[0])
 ax0.plot(x, f5[tloc[1],yloc,:], label='{:.1f}'.format(t[tloc[1]]), color=colors[1])
 ax0.plot(x, f5[tloc[2],yloc,:], label='{:.1f}'.format(t[tloc[2]]), color=colors[2])
-ax0.legend(bbox_to_anchor = (1.25, 0.55), loc = 5, frameon=False, title='Time')
+ax0.legend(bbox_to_anchor = (1.3, 0.55), loc = 5, frameon=False, title='Time')
 
 im = ax1.contourf(xx, tt, np.log10(f5[:,yloc,:]).T, 30, cmap='viridis')
 fig5.colorbar(im, cax = ax2)
@@ -257,24 +257,24 @@ if (ny > 1):
     fig = plt.figure(figsize = (4.5,3.5))
     gs = gridspec.GridSpec(1,1)
     ax0 = fig.add_subplot(gs[0])
-    
+
     ax0.spines['right'].set_visible(False)
     ax0.spines['top'].set_visible(False)
-    
+
     ax0.contourf(y,x,f1[-1,:,:].T, 30)
     plt.axis('equal')
     ax0.set_ylabel('X')
     ax0.set_xlabel('R')
     fig.suptitle('Field')
     gs.tight_layout(fig, rect=[0, 0, 1, 1])
-    
+
     fig = plt.figure(figsize = (4.5,3.5))
     gs = gridspec.GridSpec(1,1)
     ax0 = fig.add_subplot(gs[0])
-    
+
     ax0.spines['right'].set_visible(False)
     ax0.spines['top'].set_visible(False)
-    
+
     ax0.contourf(y,x,f2[-1,:,:].T, 30)
     plt.axis('equal')
     ax0.set_ylabel('X')
